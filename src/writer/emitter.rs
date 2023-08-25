@@ -224,7 +224,7 @@ impl Emitter {
 
     fn check_document_started<W: Write>(&mut self, target: &mut W) -> Result<()> {
         if !self.start_document_emitted && self.config.write_document_declaration {
-            self.emit_start_document(target, common::XmlVersion::Version10, "utf-8", None)
+            self.emit_start_document(target, common::XmlVersion::Version10, "UTF-8", None)
         } else {
             Ok(())
         }
