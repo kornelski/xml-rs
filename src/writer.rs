@@ -2,6 +2,7 @@
 //!
 //! The most important type in this module is `EventWriter` which allows writing an XML document
 //! to some output stream.
+extern crate alloc;
 
 pub use self::config::EmitterConfig;
 pub use self::emitter::EmitterError as Error;
@@ -10,33 +11,31 @@ pub use self::events::XmlEvent;
 
 use self::emitter::Emitter;
 
-use std::io::prelude::*;
-
 mod config;
 mod emitter;
 pub mod events;
 
 /// A wrapper around an `std::io::Write` instance which emits XML document according to provided
 /// events.
-pub struct EventWriter<W> {
-    sink: W,
+pub struct EventWriter {
+    sink: alloc::string::String,
     emitter: Emitter,
 }
 
-impl<W: Write> EventWriter<W> {
+impl EventWriter {
     /// Creates a new `EventWriter` out of an `std::io::Write` instance using the default
     /// configuration.
     #[inline]
-    pub fn new(sink: W) -> EventWriter<W> {
-        EventWriter::new_with_config(sink, EmitterConfig::new())
+    pub fn new() -> EventWriter {
+        EventWriter::new_with_config(EmitterConfig::new())
     }
 
     /// Creates a new `EventWriter` out of an `std::io::Write` instance using the provided
     /// configuration.
     #[inline]
-    pub fn new_with_config(sink: W, config: EmitterConfig) -> EventWriter<W> {
+    pub fn new_with_config(config: EmitterConfig) -> EventWriter {
         EventWriter {
-            sink,
+            sink: alloc::string::String::new(),
             emitter: Emitter::new(config),
         }
     }
@@ -64,8 +63,8 @@ impl<W: Write> EventWriter<W> {
                 r
             }
             XmlEvent::Comment(content) => self.emitter.emit_comment(&mut self.sink, content),
-            XmlEvent::CData(content) => self.emitter.emit_cdata(&mut self.sink, content),
-            XmlEvent::Characters(content) => self.emitter.emit_characters(&mut self.sink, content),
+            XmlEvent::CData(content) => Ok(self.emitter.emit_cdata(&mut self.sink, content)),
+            XmlEvent::Characters(content) => Ok(self.emitter.emit_characters(&mut self.sink, content)),
         }
     }
 
@@ -75,7 +74,7 @@ impl<W: Write> EventWriter<W> {
     /// documents. Use this method with care. Valid use cases for this method include accessing
     /// methods like `Write::flush`, which do not emit new data but rather change the state
     /// of the stream itself.
-    pub fn inner_mut(&mut self) -> &mut W {
+    pub fn inner_mut(&mut self) -> &mut alloc::string::String {
         &mut self.sink
     }
 
@@ -84,7 +83,7 @@ impl<W: Write> EventWriter<W> {
     /// Note that this is a destructive operation: unwrapping a writer and then wrapping
     /// it again with `EventWriter::new()` will create a fresh writer whose state will be
     /// blank; for example, accumulated namespaces will be reset.
-    pub fn into_inner(self) -> W {
+    pub fn into_inner(self) -> alloc::string::String {
         self.sink
     }
 }

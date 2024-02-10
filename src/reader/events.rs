@@ -1,6 +1,10 @@
 //! Contains `XmlEvent` datatype, instances of which are emitted by the parser.
+extern crate alloc;
 
-use std::fmt;
+use alloc::string::String;
+use alloc::vec::Vec;
+
+use core::fmt;
 use crate::attribute::OwnedAttribute;
 use crate::common::XmlVersion;
 use crate::name::OwnedName;
@@ -122,7 +126,7 @@ impl fmt::Debug for XmlEvent {
                 write!(f, "EndDocument"),
             XmlEvent::ProcessingInstruction { ref name, ref data } =>
                 write!(f, "ProcessingInstruction({}{})", *name, match *data {
-                    Some(ref data) => format!(", {data}"),
+                    Some(ref data) => alloc::format!(", {data}"),
                     None       => String::new()
                 }),
             XmlEvent::StartElement { ref name, ref attributes, namespace: Namespace(ref namespace) } =>
@@ -130,9 +134,9 @@ impl fmt::Debug for XmlEvent {
                     String::new()
                 } else {
                     let attributes: Vec<String> = attributes.iter().map(
-                        |a| format!("{} -> {}", a.name, a.value)
+                        |a| alloc::format!("{} -> {}", a.name, a.value)
                     ).collect();
-                    format!(", [{}]", attributes.join(", "))
+                    alloc::format!(", [{}]", attributes.join(", "))
                 }),
             XmlEvent::EndElement { ref name } =>
                 write!(f, "EndElement({name})"),

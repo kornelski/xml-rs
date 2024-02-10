@@ -1,8 +1,11 @@
 //! Contains XML qualified names manipulation types and functions.
 //!
+extern crate alloc;
 
-use std::fmt;
-use std::str::FromStr;
+use core::fmt;
+use core::str::FromStr;
+
+use alloc::string::{String, ToString};
 
 use crate::namespace::NS_NO_PREFIX;
 
@@ -93,8 +96,8 @@ impl<'a> Name<'a> {
     pub fn to_owned(&self) -> OwnedName {
         OwnedName {
             local_name: self.local_name.into(),
-            namespace: self.namespace.map(std::convert::Into::into),
-            prefix: self.prefix.map(std::convert::Into::into),
+            namespace: self.namespace.map(core::convert::Into::into),
+            prefix: self.prefix.map(core::convert::Into::into),
         }
     }
 
@@ -176,7 +179,7 @@ impl<'a, 'b: 'a> fmt::Display for ReprDisplay<'a, 'b> {
 /// An owned variant of `Name`.
 ///
 /// Everything about `Name` applies to this structure as well.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub struct OwnedName {
     /// A local name, e.g. `string` in `xsi:string`.
     pub local_name: String,
@@ -209,7 +212,7 @@ impl OwnedName {
 
     /// Returns a new `OwnedName` instance representing a plain local name.
     #[inline]
-    pub fn local<S>(local_name: S) -> OwnedName where S: Into<String> {
+    pub fn local<'a, S>(local_name: S) -> OwnedName where S: Into<String> {
         OwnedName {
             local_name: local_name.into(),
             namespace: None,
@@ -226,7 +229,7 @@ impl OwnedName {
         OwnedName {
             local_name: local_name.into(),
             namespace: Some(namespace.into()),
-            prefix: prefix.map(std::convert::Into::into),
+            prefix: prefix.map(core::convert::Into::into),
         }
     }
 

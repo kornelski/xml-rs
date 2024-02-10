@@ -1,6 +1,8 @@
 //! Contains parser configuration structure.
-use std::collections::HashMap;
-use std::io::Read;
+extern crate alloc;
+
+use alloc::collections::BTreeMap;
+use alloc::string::String;
 
 use crate::reader::EventReader;
 use crate::util::Encoding;
@@ -67,7 +69,7 @@ pub struct ParserConfig {
     /// however, it is convenient to make the parser recognize additional entities which
     /// are also not available through the DTD definitions (especially given that at the moment
     /// DTD parsing is not supported).
-    pub extra_entities: HashMap<String, String>,
+    pub extra_entities: BTreeMap<String, String>,
 
     /// Whether or not the parser should ignore the end of stream. Default is false.
     ///
@@ -119,7 +121,7 @@ impl ParserConfig {
             cdata_to_characters: false,
             ignore_comments: true,
             coalesce_characters: true,
-            extra_entities: HashMap::new(),
+            extra_entities: BTreeMap::new(),
             ignore_end_of_stream: false,
             replace_unknown_entity_references: false,
             ignore_root_level_whitespace: true,
@@ -145,7 +147,7 @@ impl ParserConfig {
     /// This method is exactly equivalent to calling `EventReader::new_with_config()` with
     /// this configuration object.
     #[inline]
-    pub fn create_reader<R: Read>(self, source: R) -> EventReader<R> {
+    pub fn create_reader<'a, S: Iterator<Item = &'a u8>>(self, source: S) -> EventReader<'a, S> {
         EventReader::new_with_config(source, self)
     }
 
@@ -284,7 +286,7 @@ impl ParserConfig2 {
     /// This method is exactly equivalent to calling `EventReader::new_with_config()` with
     /// this configuration object.
     #[inline]
-    pub fn create_reader<R: Read>(self, source: R) -> EventReader<R> {
+    pub fn create_reader<'a, S: Iterator<Item = &'a u8>>(self, source: S) -> EventReader<'a, S> {
         EventReader::new_with_config(source, self)
     }
 }

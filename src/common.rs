@@ -1,6 +1,6 @@
 //! Contains common types and functions used throughout the library.
 
-use std::fmt;
+use core::fmt;
 
 /// Represents a position inside some textual document.
 #[derive(Copy, Clone, PartialEq, Eq)]

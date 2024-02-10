@@ -1,7 +1,9 @@
 //! Contains XML attributes manipulation types and functions.
 //!
+extern crate alloc;
 
-use std::fmt;
+use core::fmt;
+use alloc::string::String;
 
 use crate::escape::{AttributeEscapes, Escaped};
 use crate::name::{Name, OwnedName};
@@ -46,7 +48,7 @@ impl<'a> Attribute<'a> {
 /// An owned version of an XML attribute.
 ///
 /// Consists of an owned qualified name and an owned string value.
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, PartialOrd, Ord)]
 pub struct OwnedAttribute {
     /// Attribute name.
     pub name: OwnedName,

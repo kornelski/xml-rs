@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::string::ToString;
+
 use crate::common::{is_whitespace_char, XmlVersion};
 use crate::reader::error::SyntaxError;
 use crate::reader::events::XmlEvent;

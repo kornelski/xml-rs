@@ -18,10 +18,6 @@ include = ["src/**", "LICENSE", "README.md"]
 name = "xml"
 path = "src/lib.rs"
 
-[[bin]]
-name = "xml-analyze"
-path = "src/analyze.rs"
-
 [badges]
 maintenance = { status = "actively-developed" }
 

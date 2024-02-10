@@ -1,12 +1,15 @@
+extern crate alloc;
+
 use crate::Encoding;
 use crate::reader::lexer::Token;
 
-use std::borrow::Cow;
-use std::error;
-use std::error::Error as _;
-use std::fmt;
-use std::io;
-use std::str;
+use alloc::borrow::Cow;
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
+
+use core::borrow::Borrow;
+use core::fmt;
+use core::str;
 
 use crate::common::{Position, TextPosition};
 use crate::util;
@@ -14,7 +17,7 @@ use crate::util;
 #[derive(Debug)]
 pub enum ErrorKind {
     Syntax(Cow<'static, str>),
-    Io(io::Error),
+    Io(String),
     Utf8(str::Utf8Error),
     UnexpectedEof,
 }
@@ -90,34 +93,34 @@ impl SyntaxError {
             Self::UnclosedCdata => "Unclosed <![CDATA[".into(),
             Self::UnexpectedEof => "Unexpected end of stream".into(),
             Self::UnexpectedOpeningTag => "'<' is not allowed in attributes".into(),
-            Self::CannotUndefinePrefix(ref ln) => format!("Cannot undefine prefix '{ln}'").into(),
-            Self::ConflictingEncoding(a, b) => format!("Declared encoding {a}, but uses {b}").into(),
-            Self::InvalidCharacterEntity(num) => format!("Invalid character U+{num:04X}").into(),
-            Self::InvalidDefaultNamespace(ref name) => format!( "Namespace '{name}' cannot be default").into(),
-            Self::InvalidNamePrefix(ref prefix) => format!("'{prefix}' cannot be an element name prefix").into(),
-            Self::InvalidNumericEntity(ref v) => format!("Invalid numeric entity: {v}").into(),
-            Self::InvalidQualifiedName(ref e) => format!("Qualified name is invalid: {e}").into(),
-            Self::InvalidStandaloneDeclaration(ref value) => format!("Invalid standalone declaration value: {value}").into(),
-            Self::InvalidXmlProcessingInstruction(ref name) => format!("Invalid processing instruction: <?{name} - \"<?xml\"-like PI is only valid at the beginning of the document").into(),
-            Self::RedefinedAttribute(ref name) => format!("Attribute '{name}' is redefined").into(),
-            Self::UnboundAttribute(ref name) => format!("Attribute {name} prefix is unbound").into(),
-            Self::UnboundElementPrefix(ref name) => format!("Element {name} prefix is unbound").into(),
-            Self::UndefinedEntity(ref v) => format!("Undefined entity: {v}").into(),
-            Self::UnexpectedClosingTag(ref expected_got) => format!("Unexpected closing tag: {expected_got}").into(),
-            Self::UnexpectedEntity(ref name) => format!("Unexpected entity: {name}").into(),
-            Self::UnexpectedName(ref name) => format!("Unexpected name: {name}").into(),
-            Self::UnexpectedNameInsideXml(ref name) => format!("Unexpected name inside XML declaration: {name}").into(),
-            Self::UnexpectedProcessingInstruction(ref buf, token) => format!("Unexpected token inside processing instruction: <?{buf}{token}").into(),
-            Self::UnexpectedQualifiedName(e) => format!("Unexpected token inside qualified name: {e}").into(),
-            Self::UnexpectedToken(token) => format!("Unexpected token: {token}").into(),
-            Self::UnexpectedTokenBefore(before, c) => format!("Unexpected token '{before}' before '{c}'").into(),
-            Self::UnexpectedTokenInClosingTag(token) => format!("Unexpected token inside closing tag: {token}").into(),
-            Self::UnexpectedTokenInEntity(token) => format!("Unexpected token inside entity: {token}").into(),
-            Self::UnexpectedTokenInOpeningTag(token) => format!("Unexpected token inside opening tag: {token}").into(),
-            Self::UnexpectedTokenOutsideRoot(token) => format!("Unexpected characters outside the root element: {token}").into(),
-            Self::UnexpectedXmlVersion(ref version) => format!("Invalid XML version: {version}").into(),
-            Self::UnknownMarkupDeclaration(ref v) => format!("Unknown markup declaration: {v}").into(),
-            Self::UnsupportedEncoding(ref v) => format!("Unsupported encoding: {v}").into(),
+            Self::CannotUndefinePrefix(ref ln) => alloc::format!("Cannot undefine prefix '{ln}'").into(),
+            Self::ConflictingEncoding(a, b) => alloc::format!("Declared encoding {a}, but uses {b}").into(),
+            Self::InvalidCharacterEntity(num) => alloc::format!("Invalid character U+{num:04X}").into(),
+            Self::InvalidDefaultNamespace(ref name) => alloc::format!( "Namespace '{name}' cannot be default").into(),
+            Self::InvalidNamePrefix(ref prefix) => alloc::format!("'{prefix}' cannot be an element name prefix").into(),
+            Self::InvalidNumericEntity(ref v) => alloc::format!("Invalid numeric entity: {v}").into(),
+            Self::InvalidQualifiedName(ref e) => alloc::format!("Qualified name is invalid: {e}").into(),
+            Self::InvalidStandaloneDeclaration(ref value) => alloc::format!("Invalid standalone declaration value: {value}").into(),
+            Self::InvalidXmlProcessingInstruction(ref name) => alloc::format!("Invalid processing instruction: <?{name} - \"<?xml\"-like PI is only valid at the beginning of the document").into(),
+            Self::RedefinedAttribute(ref name) => alloc::format!("Attribute '{name}' is redefined").into(),
+            Self::UnboundAttribute(ref name) => alloc::format!("Attribute {name} prefix is unbound").into(),
+            Self::UnboundElementPrefix(ref name) => alloc::format!("Element {name} prefix is unbound").into(),
+            Self::UndefinedEntity(ref v) => alloc::format!("Undefined entity: {v}").into(),
+            Self::UnexpectedClosingTag(ref expected_got) => alloc::format!("Unexpected closing tag: {expected_got}").into(),
+            Self::UnexpectedEntity(ref name) => alloc::format!("Unexpected entity: {name}").into(),
+            Self::UnexpectedName(ref name) => alloc::format!("Unexpected name: {name}").into(),
+            Self::UnexpectedNameInsideXml(ref name) => alloc::format!("Unexpected name inside XML declaration: {name}").into(),
+            Self::UnexpectedProcessingInstruction(ref buf, token) => alloc::format!("Unexpected token inside processing instruction: <?{buf}{token}").into(),
+            Self::UnexpectedQualifiedName(e) => alloc::format!("Unexpected token inside qualified name: {e}").into(),
+            Self::UnexpectedToken(token) => alloc::format!("Unexpected token: {token}").into(),
+            Self::UnexpectedTokenBefore(before, c) => alloc::format!("Unexpected token '{before}' before '{c}'").into(),
+            Self::UnexpectedTokenInClosingTag(token) => alloc::format!("Unexpected token inside closing tag: {token}").into(),
+            Self::UnexpectedTokenInEntity(token) => alloc::format!("Unexpected token inside entity: {token}").into(),
+            Self::UnexpectedTokenInOpeningTag(token) => alloc::format!("Unexpected token inside opening tag: {token}").into(),
+            Self::UnexpectedTokenOutsideRoot(token) => alloc::format!("Unexpected characters outside the root element: {token}").into(),
+            Self::UnexpectedXmlVersion(ref version) => alloc::format!("Invalid XML version: {version}").into(),
+            Self::UnknownMarkupDeclaration(ref v) => alloc::format!("Unknown markup declaration: {v}").into(),
+            Self::UnsupportedEncoding(ref v) => alloc::format!("Unsupported encoding: {v}").into(),
             Self::ExceededConfiguredLimit => "This document is larger/more complex than allowed by the parser's configuration".into(),
         }
     }
@@ -159,8 +162,8 @@ impl Error {
     #[must_use] pub fn msg(&self) -> &str {
         use self::ErrorKind::{Io, Syntax, UnexpectedEof, Utf8};
         match &self.kind {
-            Io(io_error) => io_error.description(),
-            Utf8(reason) => reason.description(),
+            Io(io_error) => &io_error,
+            Utf8(reason) => "UTF8 Error",
             Syntax(msg) => msg.as_ref(),
             UnexpectedEof => "Unexpected EOF",
         }
@@ -171,12 +174,6 @@ impl Error {
     pub fn kind(&self) -> &ErrorKind {
         &self.kind
     }
-}
-
-impl error::Error for Error {
-    #[allow(deprecated)]
-    #[cold]
-    fn description(&self) -> &str { self.msg() }
 }
 
 impl<'a, P, M> From<(&'a P, M)> for Error where P: Position, M: Into<Cow<'static, str>> {
@@ -204,15 +201,6 @@ impl From<util::CharReadError> for Error {
     }
 }
 
-impl From<io::Error> for Error {
-    #[cold]
-    fn from(e: io::Error) -> Self {
-        Error {
-            pos: TextPosition::new(),
-            kind: ErrorKind::Io(e),
-        }
-    }
-}
 
 impl Clone for ErrorKind {
     #[cold]
@@ -221,7 +209,7 @@ impl Clone for ErrorKind {
         match self {
             UnexpectedEof => UnexpectedEof,
             Utf8(reason) => Utf8(*reason),
-            Io(io_error) => Io(io::Error::new(io_error.kind(), io_error.to_string())),
+            Io(io_error) => Io(io_error.clone()),
             Syntax(msg) => Syntax(msg.clone()),
         }
     }
@@ -234,8 +222,7 @@ impl PartialEq for ErrorKind {
             (UnexpectedEof, UnexpectedEof) => true,
             (Utf8(left), Utf8(right)) => left == right,
             (Io(left), Io(right)) =>
-                left.kind() == right.kind() &&
-                left.description() == right.description(),
+                left == right,
             (Syntax(left), Syntax(right)) =>
                 left == right,
 

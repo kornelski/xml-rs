@@ -1,3 +1,7 @@
+extern crate alloc;
+
+use alloc::string::ToString;
+
 use crate::reader::error::SyntaxError;
 use crate::common::is_name_start_char;
 use crate::namespace;
@@ -45,7 +49,7 @@ impl PullParser {
             OpeningTagSubstate::InsideAttributeName => self.read_qualified_name(t, QualifiedNameTarget::AttributeNameTarget, |this, token, name| {
                 // check that no attribute with such name is already present
                 // if there is one, XML is not well-formed
-                if this.data.attributes.contains(&name) {
+                if this.data.attributes.iter().any(|attr| attr.name == name) {
                     return Some(this.error(SyntaxError::RedefinedAttribute(name.to_string().into())))
                 }
 
@@ -98,7 +102,7 @@ impl PullParser {
                         if this.data.attributes.len() >= max_attrs {
                             return Some(this.error(SyntaxError::ExceededConfiguredLimit));
                         }
-                        this.data.attributes.push(OwnedAttribute {
+                        this.data.attributes.insert(OwnedAttribute {
                             name,
                             value
                         });

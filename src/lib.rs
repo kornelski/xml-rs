@@ -1,4 +1,5 @@
 //#![warn(missing_doc)]
+#![cfg_attr(not(test), no_std)]
 #![forbid(non_camel_case_types)]
 #![forbid(unsafe_code)]
 #![allow(clippy::redundant_closure_for_method_calls)]

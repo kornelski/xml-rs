@@ -1,7 +1,7 @@
 //! Contains emitter configuration structure.
+extern crate alloc;
 
-use std::borrow::Cow;
-use std::io::Write;
+use alloc::borrow::Cow;
 use crate::writer::EventWriter;
 
 /// Emitter configuration structure.
@@ -132,8 +132,8 @@ impl EmitterConfig {
     /// This method is exactly equivalent to calling `EventWriter::new_with_config()` with
     /// this configuration object.
     #[inline]
-    pub fn create_writer<W: Write>(self, sink: W) -> EventWriter<W> {
-        EventWriter::new_with_config(sink, self)
+    pub fn create_writer(self) -> EventWriter {
+        EventWriter::new_with_config(self)
     }
 }
 

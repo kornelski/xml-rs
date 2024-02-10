@@ -1,11 +1,14 @@
 //! Contains namespace manipulation types and functions.
+extern crate alloc;
 
-use std::borrow::Cow;
-use std::collections::btree_map::Iter as Entries;
-use std::collections::btree_map::{BTreeMap, Entry};
-use std::collections::HashSet;
-use std::iter::{Map, Rev};
-use std::slice::Iter;
+use alloc::borrow::Cow;
+use alloc::collections::btree_map::Iter as Entries;
+use alloc::collections::btree_map::{BTreeMap, Entry};
+use alloc::collections::BTreeSet;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::iter::{Map, Rev};
+use core::slice::Iter;
 
 /// Designates prefix for namespace definitions.
 ///
@@ -387,7 +390,7 @@ impl NamespaceStack {
 pub struct NamespaceStackMappings<'a> {
     namespaces: Rev<Iter<'a, Namespace>>,
     current_namespace: Option<NamespaceMappings<'a>>,
-    used_keys: HashSet<&'a str>,
+    used_keys: BTreeSet<&'a str>,
 }
 
 impl<'a> NamespaceStackMappings<'a> {
@@ -438,7 +441,7 @@ impl<'a> IntoIterator for &'a NamespaceStack {
         NamespaceStackMappings {
             namespaces: self.0.iter().rev(),
             current_namespace: None,
-            used_keys: HashSet::new(),
+            used_keys: BTreeSet::new(),
         }
     }
 }

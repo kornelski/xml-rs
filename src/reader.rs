@@ -3,9 +3,8 @@
 //! The most important type in this module is `EventReader`, which provides an iterator
 //! view for events in XML document.
 
-use std::io::Read;
-use std::iter::FusedIterator;
-use std::result;
+use core::iter::FusedIterator;
+use core::result;
 
 use crate::common::{Position, TextPosition};
 
@@ -20,29 +19,28 @@ mod config;
 mod events;
 mod lexer;
 mod parser;
-mod indexset;
 mod error;
 
 
 /// A result type yielded by `XmlReader`.
 pub type Result<T, E = Error> = result::Result<T, E>;
 
-/// A wrapper around an `std::io::Read` instance which provides pull-based XML parsing.
-pub struct EventReader<R: Read> {
-    source: R,
+/// A wrapper around a Source instance which provides pull-based XML parsing.
+pub struct EventReader<'a, S: Iterator<Item = &'a u8>> {
+    source: S,
     parser: PullParser,
 }
 
-impl<R: Read> EventReader<R> {
+impl<'a, S: Iterator<Item = &'a u8>> EventReader<'a, S> {
     /// Creates a new reader, consuming the given stream.
     #[inline]
-    pub fn new(source: R) -> EventReader<R> {
+    pub fn new(source: S) -> EventReader<'a, S> {
         EventReader::new_with_config(source, ParserConfig2::new())
     }
 
     /// Creates a new reader with the provded configuration, consuming the given stream.
     #[inline]
-    pub fn new_with_config(source: R, config: impl Into<ParserConfig2>) -> EventReader<R> {
+    pub fn new_with_config(source: S, config: impl Into<ParserConfig2>) -> EventReader<'a, S> {
         EventReader { source, parser: PullParser::new(config) }
     }
 
@@ -76,20 +74,20 @@ impl<R: Read> EventReader<R> {
         Ok(())
     }
 
-    pub fn source(&self) -> &R { &self.source }
-    pub fn source_mut(&mut self) -> &mut R { &mut self.source }
+    pub fn source(&self) -> &S { &self.source }
+    pub fn source_mut(&mut self) -> &mut S { &mut self.source }
 
     /// Unwraps this `EventReader`, returning the underlying reader.
     ///
     /// Note that this operation is destructive; unwrapping the reader and wrapping it
     /// again with `EventReader::new()` will create a fresh reader which will attempt
     /// to parse an XML document from the beginning.
-    pub fn into_inner(self) -> R {
+    pub fn into_inner(self) -> S {
         self.source
     }
 }
 
-impl<B: Read> Position for EventReader<B> {
+impl<'a, S: Iterator<Item = &'a u8>> Position for EventReader<'a, S> {
     /// Returns the position of the last event produced by the reader.
     #[inline]
     fn position(&self) -> TextPosition {
@@ -97,11 +95,11 @@ impl<B: Read> Position for EventReader<B> {
     }
 }
 
-impl<R: Read> IntoIterator for EventReader<R> {
+impl<'a, S: Iterator<Item = &'a u8>> IntoIterator for EventReader<'a, S> {
     type Item = Result<XmlEvent>;
-    type IntoIter = Events<R>;
+    type IntoIter = Events<'a, S>;
 
-    fn into_iter(self) -> Events<R> {
+    fn into_iter(self) -> Events<'a, S> {
         Events { reader: self, finished: false }
     }
 }
@@ -110,27 +108,27 @@ impl<R: Read> IntoIterator for EventReader<R> {
 ///
 /// When the next event is `xml::event::Error` or `xml::event::EndDocument`, then
 /// it will be returned by the iterator once, and then it will stop producing events.
-pub struct Events<R: Read> {
-    reader: EventReader<R>,
+pub struct Events<'a, S: Iterator<Item = &'a u8>> {
+    reader: EventReader<'a, S>,
     finished: bool,
 }
 
-impl<R: Read> Events<R> {
+impl<'a, S: Iterator<Item = &'a u8>> Events<'a, S> {
     /// Unwraps the iterator, returning the internal `EventReader`.
     #[inline]
-    pub fn into_inner(self) -> EventReader<R> {
+    pub fn into_inner(self) -> EventReader<'a, S> {
         self.reader
     }
 
-    pub fn source(&self) -> &R { &self.reader.source }
-    pub fn source_mut(&mut self) -> &mut R { &mut self.reader.source }
+    pub fn source(&self) -> &S { &self.reader.source }
+    pub fn source_mut(&mut self) -> &mut S { &mut self.reader.source }
 
 }
 
-impl<R: Read> FusedIterator for Events<R> {
+impl<'a, S: Iterator<Item = &'a u8>> FusedIterator for Events<'a, S> {
 }
 
-impl<R: Read> Iterator for Events<R> {
+impl<'a, S: Iterator<Item = &'a u8>> Iterator for Events<'a, S> {
     type Item = Result<XmlEvent>;
 
     #[inline]
@@ -147,11 +145,11 @@ impl<R: Read> Iterator for Events<R> {
     }
 }
 
-impl<'r> EventReader<&'r [u8]> {
+impl<'a> EventReader<'a, core::slice::Iter<'a, u8>> {
     /// A convenience method to create an `XmlReader` from a string slice.
     #[inline]
     #[must_use]
-    pub fn from_str(source: &'r str) -> EventReader<&'r [u8]> {
-        EventReader::new(source.as_bytes())
+    pub fn from_str(source: &'a str) -> EventReader<core::slice::Iter<'a, u8>> {
+        EventReader::new(source.as_bytes().into_iter())
     }
 }
