@@ -2,13 +2,12 @@
 
 use xml::reader::ParserConfig2;
 use std::fmt;
-use std::fs::File;
 use std::io::{stderr, BufRead, BufReader, Write};
 use std::path::Path;
 
 use xml::common::Position;
 use xml::name::OwnedName;
-use xml::reader::{EventReader, ParserConfig, Result, XmlEvent};
+use xml::reader::{ParserConfig, Result, XmlEvent};
 
 #[test]
 fn issue_177() {
