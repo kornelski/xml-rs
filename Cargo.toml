@@ -15,7 +15,7 @@ rust-version = "1.58"
 include = ["src/**", "LICENSE", "README.md"]
 
 [lib]
-name = "xml-no-std"
+name = "xml_no_std"
 path = "src/lib.rs"
 
 [badges]
