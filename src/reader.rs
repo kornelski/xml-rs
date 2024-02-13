@@ -25,26 +25,26 @@ mod error;
 /// A result type yielded by `XmlReader`.
 pub type Result<T, E = Error> = result::Result<T, E>;
 
-/// A wrapper around a Source instance which provides pull-based XML parsing.
+/// A wrapper around an Iterator which provides pull-based XML parsing.
 pub struct EventReader<'a, S: Iterator<Item = &'a u8>> {
     source: S,
     parser: PullParser,
 }
 
 impl<'a, S: Iterator<Item = &'a u8>> EventReader<'a, S> {
-    /// Creates a new reader, consuming the given stream.
+    /// Creates a new reader from an Iterator.
     #[inline]
     pub fn new(source: S) -> EventReader<'a, S> {
         EventReader::new_with_config(source, ParserConfig2::new())
     }
 
-    /// Creates a new reader with the provded configuration, consuming the given stream.
+    /// Creates a new reader with the provided configuration from an Iterator.
     #[inline]
     pub fn new_with_config(source: S, config: impl Into<ParserConfig2>) -> EventReader<'a, S> {
         EventReader { source, parser: PullParser::new(config) }
     }
 
-    /// Pulls and returns next XML event from the stream.
+    /// Pulls and returns next XML event from the Iterator.
     ///
     /// If returned event is `XmlEvent::Error` or `XmlEvent::EndDocument`, then
     /// further calls to this method will return this event again.
@@ -77,11 +77,7 @@ impl<'a, S: Iterator<Item = &'a u8>> EventReader<'a, S> {
     pub fn source(&self) -> &S { &self.source }
     pub fn source_mut(&mut self) -> &mut S { &mut self.source }
 
-    /// Unwraps this `EventReader`, returning the underlying reader.
-    ///
-    /// Note that this operation is destructive; unwrapping the reader and wrapping it
-    /// again with `EventReader::new()` will create a fresh reader which will attempt
-    /// to parse an XML document from the beginning.
+    /// Unwraps this `EventReader`, returning the underlying Iterator.
     pub fn into_inner(self) -> S {
         self.source
     }
@@ -104,7 +100,7 @@ impl<'a, S: Iterator<Item = &'a u8>> IntoIterator for EventReader<'a, S> {
     }
 }
 
-/// An iterator over XML events created from some type implementing `Read`.
+/// An iterator over XML events created from some type implementing `Iterator<Item = &u8>`.
 ///
 /// When the next event is `xml::event::Error` or `xml::event::EndDocument`, then
 /// it will be returned by the iterator once, and then it will stop producing events.

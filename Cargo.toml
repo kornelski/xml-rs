@@ -1,21 +1,21 @@
 [package]
-name = "xml-rs"
+name = "xml-no-std"
 version = "0.8.19"
 authors = ["Vladimir Matveev <vmatveev@citrine.cc>"]
 license = "MIT"
 description = "An XML library in pure Rust"
-repository = "https://github.com/kornelski/xml-rs"
-homepage = "https://lib.rs/crates/xml-rs"
-documentation = "https://docs.rs/xml-rs/"
+repository = "https://github.com/6d7a/xml-no-std"
+homepage = "https://lib.rs/crates/xml-no-std"
+documentation = "https://docs.rs/xml-no-std/"
 readme = "README.md"
 keywords = ["xml", "parser", "sax", "parsing", "writer"]
-categories = ["parser-implementations"]
+categories = ["parser-implementations", "no-std"]
 edition = "2021"
 rust-version = "1.58"
 include = ["src/**", "LICENSE", "README.md"]
 
 [lib]
-name = "xml"
+name = "xml-no-std"
 path = "src/lib.rs"
 
 [badges]

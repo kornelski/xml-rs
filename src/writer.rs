@@ -15,7 +15,7 @@ mod config;
 mod emitter;
 pub mod events;
 
-/// A wrapper around an `std::io::Write` instance which emits XML document according to provided
+/// A wrapper around a String which emits XML document according to provided
 /// events.
 pub struct EventWriter {
     sink: alloc::string::String,
@@ -23,14 +23,14 @@ pub struct EventWriter {
 }
 
 impl EventWriter {
-    /// Creates a new `EventWriter` out of an `std::io::Write` instance using the default
+    /// Creates a new `EventWriter` using the default
     /// configuration.
     #[inline]
     pub fn new() -> EventWriter {
         EventWriter::new_with_config(EmitterConfig::new())
     }
 
-    /// Creates a new `EventWriter` out of an `std::io::Write` instance using the provided
+    /// Creates a new `EventWriter` using the provided
     /// configuration.
     #[inline]
     pub fn new_with_config(config: EmitterConfig) -> EventWriter {
@@ -68,21 +68,13 @@ impl EventWriter {
         }
     }
 
-    /// Returns a mutable reference to the underlying `Writer`.
-    ///
-    /// Note that having a reference to the underlying sink makes it very easy to emit invalid XML
-    /// documents. Use this method with care. Valid use cases for this method include accessing
-    /// methods like `Write::flush`, which do not emit new data but rather change the state
-    /// of the stream itself.
+    /// Returns a mutable reference to the underlying String.
     pub fn inner_mut(&mut self) -> &mut alloc::string::String {
         &mut self.sink
     }
 
-    /// Unwraps this `EventWriter`, returning the underlying writer.
-    ///
-    /// Note that this is a destructive operation: unwrapping a writer and then wrapping
-    /// it again with `EventWriter::new()` will create a fresh writer whose state will be
-    /// blank; for example, accumulated namespaces will be reset.
+    /// Unwraps this `EventWriter`, returning the String the writer has written to.
+    /// This is the primary method for retrieving the output of the `no-std` writer.
     pub fn into_inner(self) -> alloc::string::String {
         self.sink
     }

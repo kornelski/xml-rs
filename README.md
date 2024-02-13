@@ -1,84 +1,77 @@
-xml-rs, an XML library for Rust
-===============================
+# xml-no-std, an `xml-rs` fork for `no_std`
 
-[![CI](https://github.com/kornelski/xml-rs/actions/workflows/main.yml/badge.svg)](https://github.com/kornelski/xml-rs/actions/workflows/main.yml)
-[![crates.io][crates-io-img]](https://lib.rs/crates/xml-rs)
-[![docs][docs-img]](https://docs.rs/xml-rs/)
+[![crates.io][crates-io-img]](https://lib.rs/crates/xml-no-std)
+[![docs][docs-img]](https://docs.rs/xml-no-std/)
 
-[Documentation](https://docs.rs/xml-rs/)
+[Documentation](https://docs.rs/xml-no-std/)
 
-  [crates-io-img]: https://img.shields.io/crates/v/xml-rs.svg
-  [docs-img]: https://img.shields.io/badge/docs-latest%20release-6495ed.svg
+[crates-io-img]: https://img.shields.io/crates/v/xml-no-std.svg
+[docs-img]: https://img.shields.io/badge/docs-latest%20release-6495ed.svg
 
-xml-rs is an XML library for the [Rust](https://www.rust-lang.org/) programming language.
-It supports reading and writing of XML documents in a streaming fashion (without DOM).
+`xml-no-std` is a `no_std` fork of the popular XML library [`xml-rs`](https://github.com/kornelski/xml-rs)
+for the [Rust](https://www.rust-lang.org/) programming language. The crate sacrifices streaming capabilities 
+and performance for `no_std` compliance (`alloc` is still needed).
 
-### Features
+All credit goes to [netvl](https://github.com/netvl) and [kornelski](https://github.com/kornelski). 
+Thank you for the great work :green_heart:
 
-* XML spec conformance better than other pure-Rust libraries.
+### Motivation
 
-* Easy to use API based on `Iterator`s and regular `String`s without tricky lifetimes.
+`xml-no-std` was created in order to support [XML encoding rules](https://www.itu.int/en/ITU-T/asn1/Pages/xer.aspx) 
+for the [`librasn` ASN.1 framework](https://github.com/librasn). From the various encoding rules for ASN.1, XML 
+encoding rules are usually not chosen for performance-critical use cases. Therefore, the performance losses are tolerable.
 
-* Support for UTF-16, UTF-8, ISO-8859-1, and ASCII encodings.
+### Trade-offs
 
-* Written entirely in the safe Rust subset. Designed to safely handle untrusted input.
+In order to be compliant with [`no_std`](https://docs.rust-embedded.org/book/intro/no-std.html) environments, 
+`xml-no-std` operates on `Iterator<Item = &u8>` for reading and `alloc::string::String` for writing instead of
+`std::io::Read` and `std::io::Write`.
+Stream reading is therefore not supported.
 
+As far as performance is concerned, the changes `xml-no-std` makes hit hard when XML documents with 
+many attributes in its elements are read. `xml-no-std` uses a `alloc::collections::BTreeSet` for 
+storing XML Attributes, which is suboptimal for elements with many attributes. There's definitely
+room for improvement here, so contributions are very welcome.
 
-The API is heavily inspired by Java Streaming API for XML ([StAX][stax]). It contains a pull parser much like StAX event reader. It provides an iterator API, so you can leverage Rust's existing iterators library features.
+Some ballpark figures from my own dev machine:
 
-  [stax]: https://en.wikipedia.org/wiki/StAX
+| Bench          | `xml-rs`                    | `xml-no-std`                    |
+| -------------- | --------------------------- | ------------------------------- |
+| read           | 43,255 ns/iter (+/- 1,498)  | 57,263 ns/iter (+/- 1,121)      |
+| read_lots_attr | 426,440 ns/iter (+/- 3,932) | 6,122,947 ns/iter (+/- 609,079) |
+| write          | 7,405 ns/iter (+/- 31)      | 17,303 ns/iter (+/- 134)        |
 
-It also provides a streaming document writer much like StAX event writer.
-This writer consumes its own set of events, but reader events can be converted to
-writer events easily, and so it is possible to write XML transformation chains in a pretty
-clean manner.
+## Building and using
 
-This parser is mostly full-featured, however, there are limitations:
-* Legacy code pages and non-Unicode encodings are not supported;
-* DTD validation is not supported (but entities defined in the internal subset are supported);
-* attribute value normalization is not performed, and end-of-line characters are not normalized either.
-
-Other than that the parser tries to be mostly XML-1.1-compliant.
-
-Writer is also mostly full-featured with the following limitations:
-* no support for encodings other than UTF-8,
-* no support for emitting `<!DOCTYPE>` declarations;
-* more validations of input are needed, for example, checking that namespace prefixes are bounded
-  or comments are well-formed.
-
-Building and using
-------------------
-
-xml-rs uses [Cargo](https://crates.io), so add it with `cargo add xml` or modify `Cargo.toml`:
+xml-no-std uses [Cargo](https://crates.io), so add it with `cargo add xml-no-std` or modify `Cargo.toml`:
 
 ```toml
 [dependencies]
-xml = "0.8.16"
+xml-no-std = "0.8.16"
 ```
 
-The package exposes a single crate called `xml`.
+The package exposes a single crate called `xml-no-std`.
 
-Reading XML documents
----------------------
+## Reading XML documents
 
-[`xml::reader::EventReader`](EventReader) requires a [`Read`](stdread) instance to read from. It can be a `File` wrapped in `BufReader`, or a `Vec<u8>`, or a `&[u8]` slice.
+[`xml::reader::EventReader`](EventReader) requires an [`Iterator`](https://doc.rust-lang.org/core/iter/trait.Iterator.html) 
+over `&u8` items to read from. 
 
 [EventReader]: https://docs.rs/xml-rs/latest/xml/reader/struct.EventReader.html
-[stdread]: https://doc.rust-lang.org/stable/std/io/trait.Read.html
 
 `EventReader` implements `IntoIterator` trait, so you can use it in a `for` loop directly:
 
-```rust,no_run
+```rust
 use std::fs::File;
 use std::io::BufReader;
 
-use xml::reader::{EventReader, XmlEvent};
+use xml_no_std::reader::{EventReader, XmlEvent};
 
 fn main() -> std::io::Result<()> {
-    let file = File::open("file.xml")?;
-    let file = BufReader::new(file); // Buffering is important for performance
+    let mut input = String::new();
+    let file = File::open("file.xml")?.read_to_string(&mut input);
 
-    let parser = EventReader::new(file);
+    let parser = EventReader::new(input.as_bytes().iter());
     let mut depth = 0;
     for e in parser {
         match e {
@@ -124,20 +117,12 @@ See its documentation for more information and examples.
 
 [ParserConfig]: https://docs.rs/xml-rs/latest/xml/reader/struct.ParserConfig.html
 
-You can find a more extensive example of using `EventReader` in `src/analyze.rs`, which is a
-small program (BTW, it is built with `cargo build` and can be run after that) which shows various
-statistics about specified XML document. It can also be used to check for well-formedness of
-XML documents - if a document is not well-formed, this program will exit with an error.
-
-
 ## Parsing untrusted inputs
 
 The parser is written in safe Rust subset, so by Rust's guarantees the worst that it can do is to cause a panic.
 You can use `ParserConfig` to set limits on maximum lenghts of names, attributes, text, entities, etc.
-You should also set a maximum document size via `io::Read`'s [`take(max)`](https://doc.rust-lang.org/stable/std/io/trait.Read.html#method.take) method.
 
-Writing XML documents
----------------------
+## Writing XML documents
 
 xml-rs also provides a streaming writer much like StAX event writer. With it you can write an
 XML document to any `Write` implementor.
@@ -160,10 +145,10 @@ fn make_event_from_line(line: &str) -> XmlEvent {
 
 fn main() -> io::Result<()> {
     let input = io::stdin();
-    let output = io::stdout();
+    let out = io::stdout();
     let mut writer = EmitterConfig::new()
         .perform_indent(true)
-        .create_writer(output);
+        .create_writer();
 
     let mut line = String::new();
     loop {
@@ -178,7 +163,7 @@ fn main() -> io::Result<()> {
             panic!("Write error: {e}")
         }
     }
-    Ok(())
+    out.write_all(writer.into_inner().as_bytes())
 }
 ```
 
@@ -209,8 +194,7 @@ information.
 
 [EmitterConfig]: https://docs.rs/xml-rs/latest/xml/writer/struct.EmitterConfig.html
 
-Bug reports
-------------
+## Bug reports
 
-Please report issues at: <https://github.com/kornelski/xml-rs/issues>.
-
+Please report issues concerning core XML reading and writing at: <https://github.com/kornelski/xml-rs/issues>.
+Please report issues concerning the no-std fork at: <https://github.com/6d7a/xml-no-std/issues>.
