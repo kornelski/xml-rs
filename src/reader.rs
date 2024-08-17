@@ -95,6 +95,11 @@ impl<R: Read> EventReader<R> {
     pub fn into_inner(self) -> R {
         self.source
     }
+
+    /// Retrieves the DOCTYPE from the document if any
+    pub fn doctype(&self) -> &Option<String> {
+        self.parser.doctype()
+    }
 }
 
 impl<B: Read> Position for EventReader<B> {

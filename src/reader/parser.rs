@@ -122,6 +122,7 @@ impl PullParser {
 
             data: MarkupData {
                 name: String::new(),
+                doctype: None,
                 version: None,
                 encoding: None,
                 standalone: None,
@@ -145,6 +146,12 @@ impl PullParser {
 
     /// Checks if this parser ignores the end of stream errors.
     pub fn is_ignoring_end_of_stream(&self) -> bool { self.config.c.ignore_end_of_stream }
+
+    /// Retrieves the Doctype from the document if any
+    #[inline]
+    pub fn doctype(&self) -> &Option<String> {
+        &self.data.doctype
+    }
 
     #[inline(never)]
     fn set_encountered(&mut self, new_encounter: Encountered) -> Option<Result> {
@@ -299,6 +306,7 @@ struct MarkupData {
     name: String,     // used for processing instruction name
     ref_data: String,  // used for reference content
 
+    doctype: Option<String>, // keeps a copy of the original doctype
     version: Option<XmlVersion>,  // used for XML declaration version
     encoding: Option<String>,  // used for XML declaration encoding
     standalone: Option<bool>,  // used for XML declaration standalone parameter
