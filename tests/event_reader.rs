@@ -714,6 +714,26 @@ fn push_pos_issue() {
     parser.into_iter().for_each(|e| { e.unwrap(); });
 }
 
+#[test]
+fn retrieve_doctype() {
+    let source = r#"<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+      "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+    <svg xmlns="http://www.w3.org/2000/svg" version="1.1"
+         width="120" height="120">
+      <rect x="14" y="23" width="200" height="50" fill="lime"
+          stroke="black" />
+    </svg>"#;
+
+    let parser = ParserConfig::new()
+        .cdata_to_characters(true)
+        .ignore_comments(true)
+        .coalesce_characters(false)
+        .create_reader(std::io::Cursor::new(source));
+
+    assert_eq!(parser.doctype(), Some(&String::from(r#"<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">"#)));
+}
+
 // clones a lot but that's fine
 fn trim_until_bar(s: String) -> String {
     match s.trim() {
