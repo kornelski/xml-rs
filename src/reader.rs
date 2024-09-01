@@ -97,7 +97,7 @@ impl<R: Read> EventReader<R> {
     }
 
     /// Retrieves the DOCTYPE from the document if any
-    pub fn doctype(&self) -> &Option<String> {
+    pub fn doctype(&self) -> Option<&String> {
         self.parser.doctype()
     }
 }

@@ -149,8 +149,8 @@ impl PullParser {
 
     /// Retrieves the Doctype from the document if any
     #[inline]
-    pub fn doctype(&self) -> &Option<String> {
-        self.data.doctype.as_deref()
+    pub fn doctype(&self) -> Option<&String> {
+        self.data.doctype.as_ref()
     }
 
     #[inline(never)]
