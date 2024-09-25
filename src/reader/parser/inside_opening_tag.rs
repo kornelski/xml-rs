@@ -113,7 +113,14 @@ impl PullParser {
                 },
                 Token::TagEnd => self.emit_start_element(false),
                 Token::EmptyTagEnd => self.emit_start_element(true),
-                _ => Some(self.error(SyntaxError::UnexpectedTokenInOpeningTag(t))),
+                Token::Character(c) if is_name_start_char(c) => {
+                    if self.buf.len() > self.config.max_name_length {
+                        return Some(self.error(SyntaxError::ExceededConfiguredLimit));
+                    }
+                    self.buf.push(c);
+                    self.into_state_continue(State::InsideOpeningTag(OpeningTagSubstate::InsideAttributeName))
+                },
+                _ => Some(self.error(SyntaxError::UnexpectedTokenInOpeningTag(t))) ,
             },
         }
     }

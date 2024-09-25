@@ -794,6 +794,16 @@ mod tests {
     }
 
     #[test]
+    fn attributes_without_spaces_inbetween() {
+        let (mut r, mut p) = test_data!(r#"
+            <a attr="xxx"attr2="zzz" />
+        "#);
+
+        expect_event!(r, p, Ok(XmlEvent::StartDocument { .. }));
+        expect_event!(r, p, Ok(XmlEvent::StartElement { .. }));
+    }
+
+    #[test]
     fn reference_err() {
         let (mut r, mut p) = test_data!(r"
             <a>&&amp;</a>
