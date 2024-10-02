@@ -46,8 +46,8 @@ impl<R: Read> EventReader<R> {
 
     /// Pulls and returns next XML event from the stream.
     ///
-    /// If returned event is `XmlEvent::Error` or `XmlEvent::EndDocument`, then
-    /// further calls to this method will return this event again.
+    /// If this returns [Err] or [XmlEvent::EndDocument] then further calls to
+    /// this method will return this event again.
     #[inline]
     pub fn next(&mut self) -> Result<XmlEvent> {
         self.parser.next(&mut self.source)
