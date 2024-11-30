@@ -255,3 +255,44 @@ impl<'a> From<StartElementBuilder<'a>> for XmlEvent<'a> {
         }
     }
 }
+
+impl<'a> TryFrom<&'a crate::reader::XmlEvent> for XmlEvent<'a> {
+    type Error = ();
+
+    fn try_from(event: &crate::reader::XmlEvent) -> Result<XmlEvent<'_>, Self::Error> {
+            match event {
+                crate::reader::XmlEvent::StartDocument {
+                    version,
+                    encoding,
+                    standalone,
+                } => Ok(XmlEvent::StartDocument {
+                    version: version.clone(),
+                    encoding: Some(&encoding),
+                    standalone: standalone.clone(),
+                }),
+                crate::reader::XmlEvent::EndDocument => Err(()),
+                crate::reader::XmlEvent::ProcessingInstruction { name, data } => {
+                    Ok(XmlEvent::ProcessingInstruction {
+                        name: &name,
+                        data: data.as_deref(),
+                    })
+                }
+                crate::reader::XmlEvent::StartElement {
+                    name,
+                    attributes,
+                    namespace,
+                } => Ok(XmlEvent::StartElement {
+                    name: name.borrow(),
+                    attributes: Cow::Owned(attributes.iter().map(|attr| attr.borrow()).collect()),
+                    namespace: namespace.borrow(),
+                }),
+                crate::reader::XmlEvent::EndElement { name } => Ok(XmlEvent::EndElement {
+                    name: Some(name.borrow()),
+                }),
+                crate::reader::XmlEvent::CData(chars) => Ok(XmlEvent::CData(chars)),
+                crate::reader::XmlEvent::Comment(chars) => Ok(XmlEvent::Comment(chars)),
+                crate::reader::XmlEvent::Characters(chars) => Ok(XmlEvent::Characters(chars)),
+                crate::reader::XmlEvent::Whitespace(chars) => Ok(XmlEvent::Characters(chars)),
+            }
+    }
+}
