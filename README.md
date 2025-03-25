@@ -2,6 +2,7 @@ xml-rs, an XML library for Rust
 ===============================
 
 [![CI](https://github.com/kornelski/xml-rs/actions/workflows/main.yml/badge.svg)](https://github.com/kornelski/xml-rs/actions/workflows/main.yml)
+[![libs.tech recommends](https://libs.tech/project/635073227/badge.svg)](https://libs.tech/project/635073227/xml-rs)
 [![crates.io][crates-io-img]](https://lib.rs/crates/xml-rs)
 [![docs][docs-img]](https://docs.rs/xml-rs/)
 
