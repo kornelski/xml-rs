@@ -792,7 +792,7 @@ mod tests {
             }
         );
     }
- 
+
     #[test]
     fn processing_instruction_in_attribute_value() {
         use crate::reader::error::{SyntaxError, Error, ErrorKind};
