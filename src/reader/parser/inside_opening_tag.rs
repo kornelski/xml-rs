@@ -1,7 +1,7 @@
-use crate::reader::error::SyntaxError;
-use crate::common::is_name_start_char;
+use crate::attribute::OwnedAttribute;
+use crate::common::{is_name_start_char, is_whitespace_char};
 use crate::namespace;
-use crate::{attribute::OwnedAttribute, common::is_whitespace_char};
+use crate::reader::error::SyntaxError;
 
 use crate::reader::lexer::Token;
 
@@ -22,7 +22,10 @@ impl PullParser {
                             Token::TagEnd => this.emit_start_element(false),
                             Token::EmptyTagEnd => this.emit_start_element(true),
                             Token::Character(c) if is_whitespace_char(c) => this.into_state_continue(State::InsideOpeningTag(OpeningTagSubstate::InsideTag)),
-                            _ => unreachable!()
+                            _ => {
+                                debug_assert!(false, "unreachable");
+                                None
+                            },
                         }
                     }
                 }
@@ -38,7 +41,7 @@ impl PullParser {
                     }
                     self.buf.push(c);
                     self.into_state_continue(State::InsideOpeningTag(OpeningTagSubstate::InsideAttributeName))
-                }
+                },
                 _ => Some(self.error(SyntaxError::UnexpectedTokenInOpeningTag(t))),
             },
 
@@ -80,7 +83,7 @@ impl PullParser {
                             this.nst.put(name.local_name.clone(), value);
                             this.into_state_continue(State::InsideOpeningTag(OpeningTagSubstate::AfterAttributeValue))
                         }
-                    }
+                    },
 
                     // declaring default namespace
                     None if &*name.local_name == namespace::NS_XMLNS_PREFIX =>
@@ -98,12 +101,9 @@ impl PullParser {
                         if this.data.attributes.len() >= max_attrs {
                             return Some(this.error(SyntaxError::ExceededConfiguredLimit));
                         }
-                        this.data.attributes.push(OwnedAttribute {
-                            name,
-                            value
-                        });
+                        this.data.attributes.push(OwnedAttribute { name, value });
                         this.into_state_continue(State::InsideOpeningTag(OpeningTagSubstate::AfterAttributeValue))
-                    }
+                    },
                 }
             }),
 

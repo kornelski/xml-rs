@@ -1,6 +1,8 @@
 //! Contains functions for performing XML special characters escaping.
 
-use std::{borrow::Cow, marker::PhantomData, fmt::{Display, Result, Formatter}};
+use std::borrow::Cow;
+use std::fmt::{Display, Formatter, Result};
+use std::marker::PhantomData;
 
 pub(crate) trait Escapes {
     fn escape(c: u8) -> Option<&'static str>;
@@ -20,7 +22,7 @@ pub(crate) struct Escaped<'a, E: Escapes> {
 }
 
 impl<'a, E: Escapes> Escaped<'a, E> {
-    pub fn new(s: &'a str) -> Self {
+    pub const fn new(s: &'a str) -> Self {
         Escaped {
             _escape_phantom: PhantomData,
             to_escape: s,
@@ -28,15 +30,12 @@ impl<'a, E: Escapes> Escaped<'a, E> {
     }
 }
 
-impl<'a, E: Escapes> Display for Escaped<'a, E> {
+impl<E: Escapes> Display for Escaped<'_, E> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut total_remaining = self.to_escape;
 
         // find the next occurence
-        while let Some(n) = total_remaining
-            .bytes()
-            .position(E::byte_needs_escaping)
-        {
+        while let Some(n) = total_remaining.bytes().position(E::byte_needs_escaping) {
             let (start, remaining) = total_remaining.split_at(n);
 
             f.write_str(start)?;

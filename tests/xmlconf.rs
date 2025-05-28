@@ -1,15 +1,14 @@
 //! W3C XML conformance test suite <https://www.w3.org/XML/Test/>
 
-use std::collections::HashMap;
-use std::collections::HashSet;
+use xml::reader::ParserConfig2;
+use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use std::process::Command;
 use std::sync::Mutex;
-use xml::EventWriter;
-use xml::ParserConfig;
 use xml::reader::XmlEvent;
+use xml::{EventWriter, ParserConfig};
 
 static UNZIP: Mutex<()> = Mutex::new(());
 
@@ -27,6 +26,15 @@ fn ensure_unzipped() {
 
 #[track_caller]
 fn run_suite(suite_rel_path: &str) {
+    run_suite_with_config(suite_rel_path, ParserConfig::default().allow_multiple_root_elements(true));
+    run_suite_with_config(suite_rel_path, ParserConfig::default().coalesce_characters(false).into());
+    run_suite_with_config(suite_rel_path, ParserConfig::default().ignore_comments(false).into());
+    run_suite_with_config(suite_rel_path, ParserConfig::new().trim_whitespace(true).whitespace_to_characters(true).cdata_to_characters(true).ignore_comments(true).coalesce_characters(true).into());
+    run_suite_with_config(suite_rel_path, ParserConfig::default().allow_multiple_root_elements(false).ignore_root_level_whitespace(false));
+}
+
+#[track_caller]
+fn run_suite_with_config(suite_rel_path: &str, parser_config: ParserConfig2) {
     ensure_unzipped();
 
     let suite_path = Path::new("tests").join(suite_rel_path);
@@ -61,8 +69,8 @@ fn run_suite(suite_rel_path: &str) {
                 }
 
                 let res = match test_type {
-                    "valid" => expect_well_formed(&path, &desc),
-                    "invalid" => expect_well_formed(&path, &desc), // invalid is still well-formed
+                    "valid" => expect_well_formed(&path, &desc, parser_config.clone()),
+                    "invalid" => expect_well_formed(&path, &desc, parser_config.clone()), // invalid is still well-formed
                     "not-wf" | "error" => expect_ill_formed(&path, &desc),
                     other => unimplemented!("{other}?? type"),
                 };
@@ -89,7 +97,6 @@ fn run_suite(suite_rel_path: &str) {
                 attr = attributes.into_iter().map(|a| (a.name.local_name, a.value)).collect();
             },
             _ => {},
-
         }
     }
     if let Some(out) = new_known_failures_file {
@@ -103,9 +110,9 @@ fn run_suite(suite_rel_path: &str) {
 }
 
 #[track_caller]
-fn expect_well_formed(xml_path: &Path, msg: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn expect_well_formed(xml_path: &Path, msg: &str, parser_config: ParserConfig2) -> Result<(), Box<dyn std::error::Error>> {
     let f = BufReader::new(File::open(xml_path).expect("testcase"));
-    let r = ParserConfig::new().allow_multiple_root_elements(false).create_reader(f);
+    let r = parser_config.create_reader(f);
     let mut w = EventWriter::new(Vec::new());
     let mut seen_any = false;
     let mut writes_failed = None;
@@ -119,7 +126,7 @@ fn expect_well_formed(xml_path: &Path, msg: &str) -> Result<(), Box<dyn std::err
             XmlEvent::StartDocument { .. } => {
                 if document_started { return Err("document started twice".into()); }
                 document_started = true;
-            }
+            },
             _ => {},
         }
         if let Some(e) = e.as_writer_event() {
@@ -128,7 +135,9 @@ fn expect_well_formed(xml_path: &Path, msg: &str) -> Result<(), Box<dyn std::err
             }
         }
     }
-    if !seen_any { return Err("no elements found".into()) }
+    if !seen_any {
+        return Err("no elements found".into());
+    }
     if let Some(e) = writes_failed {
         panic!("{} write failed on {e}", xml_path.display());
     }
@@ -140,7 +149,7 @@ fn expect_ill_formed(xml_path: &Path, msg: &str) -> Result<(), Box<dyn std::erro
     let f = BufReader::new(File::open(xml_path)?);
     let r = ParserConfig::new().allow_multiple_root_elements(false).create_reader(f);
     for e in r {
-        if let Err(_) = e {
+        if e.is_err() {
             return Ok(());
         }
     }

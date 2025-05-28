@@ -1,10 +1,9 @@
 #![forbid(unsafe_code)]
 
-use std::cmp;
 use std::collections::HashSet;
-use std::env;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
+use std::{cmp, env};
 
 use xml::reader::XmlEvent;
 use xml::ParserConfig;
@@ -46,28 +45,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ),
             XmlEvent::EndDocument => println!("Document finished"),
             XmlEvent::ProcessingInstruction { .. } => processing_instructions += 1,
-            XmlEvent::Whitespace(_) => {} // can't happen due to configuration
+            XmlEvent::Whitespace(_) => {}, // can't happen due to configuration
             XmlEvent::Characters(s) => {
                 character_blocks += 1;
                 characters += s.len();
-            }
+            },
             XmlEvent::CData(s) => {
                 cdata_blocks += 1;
                 characters += s.len();
-            }
+            },
             XmlEvent::Comment(s) => {
                 comment_blocks += 1;
                 comment_characters += s.len();
-            }
+            },
             XmlEvent::StartElement { namespace, .. } => {
                 depth += 1;
                 max_depth = cmp::max(max_depth, depth);
                 elements += 1;
                 namespaces.extend(namespace.0.into_values());
-            }
+            },
             XmlEvent::EndElement { .. } => {
                 depth -= 1;
-            }
+            },
         };
     }
 

@@ -1,10 +1,10 @@
-use crate::reader::error::SyntaxError;
 use crate::common::{is_name_char, is_name_start_char, is_whitespace_char};
+use crate::reader::error::SyntaxError;
 
 use crate::reader::events::XmlEvent;
 use crate::reader::lexer::Token;
 
-use super::{DeclarationSubstate, ProcessingInstructionSubstate, PullParser, Result, State, Encountered};
+use super::{DeclarationSubstate, Encountered, ProcessingInstructionSubstate, PullParser, Result, State};
 
 impl PullParser {
     pub fn inside_processing_instruction(&mut self, t: Token, s: ProcessingInstructionSubstate) -> Option<Result> {
@@ -51,9 +51,9 @@ impl PullParser {
                                 event2
                             };
                             self.into_state(State::OutsideTag, event1)
-                        }
+                        },
                     }
-                }
+                },
 
                 Token::Character(c) if is_whitespace_char(c) => {
                     // self.buf contains PI name
@@ -75,14 +75,14 @@ impl PullParser {
                             // can't have a PI before `<?xml`
                             let next_event = self.set_encountered(Encountered::Declaration);
                             self.into_state(State::InsideProcessingInstruction(ProcessingInstructionSubstate::PIInsideData), next_event)
-                        }
+                        },
                     }
-                }
+                },
 
                 _ => {
                     let buf = self.take_buf();
                     Some(self.error(SyntaxError::UnexpectedProcessingInstruction(buf.into(), t)))
-                }
+                },
             },
 
             ProcessingInstructionSubstate::PIInsideData => match t {
@@ -91,10 +91,7 @@ impl PullParser {
                     let data = self.take_buf();
                     self.into_state_emit(
                         State::OutsideTag,
-                        Ok(XmlEvent::ProcessingInstruction {
-                            name,
-                            data: Some(data),
-                        }),
+                        Ok(XmlEvent::ProcessingInstruction { name, data: Some(data) }),
                     )
                 },
 
@@ -109,7 +106,7 @@ impl PullParser {
                     }
                     t.push_to_string(&mut self.buf);
                     None
-                }
+                },
             },
         }
     }

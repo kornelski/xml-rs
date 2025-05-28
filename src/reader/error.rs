@@ -1,12 +1,9 @@
-use crate::Encoding;
 use crate::reader::lexer::Token;
+use crate::Encoding;
 
 use std::borrow::Cow;
-use std::error;
 use std::error::Error as _;
-use std::fmt;
-use std::io;
-use std::str;
+use std::{error, fmt, io, str};
 
 use crate::common::{Position, TextPosition};
 use crate::util;
@@ -98,12 +95,12 @@ impl SyntaxError {
             Self::CannotUndefinePrefix(ref ln) => format!("Cannot undefine prefix '{ln}'").into(),
             Self::ConflictingEncoding(a, b) => format!("Declared encoding {a}, but uses {b}").into(),
             Self::InvalidCharacterEntity(num) => format!("Invalid character U+{num:04X}").into(),
-            Self::InvalidDefaultNamespace(ref name) => format!( "Namespace '{name}' cannot be default").into(),
+            Self::InvalidDefaultNamespace(ref name) => format!("Namespace '{name}' cannot be default").into(),
             Self::InvalidNamePrefix(ref prefix) => format!("'{prefix}' cannot be an element name prefix").into(),
             Self::InvalidNumericEntity(ref v) => format!("Invalid numeric entity: {v}").into(),
             Self::InvalidQualifiedName(ref e) => format!("Qualified name is invalid: {e}").into(),
             Self::InvalidStandaloneDeclaration(ref value) => format!("Invalid standalone declaration value: {value}").into(),
-            Self::InvalidXmlProcessingInstruction(ref name) => format!("Invalid processing instruction: <?{name} - \"<?xml\"-like PI is only valid at the beginning of the document").into(),
+            Self::InvalidXmlProcessingInstruction(ref name) => format!("Invalid processing instruction: <?{name}\nThe XML spec only allows \"<?xml\" at the very beginning of the file, with no whitespace, comments, or any elements before it").into(),
             Self::RedefinedAttribute(ref name) => format!("Attribute '{name}' is redefined").into(),
             Self::UnboundAttribute(ref name) => format!("Attribute {name} prefix is unbound").into(),
             Self::UnboundElementPrefix(ref name) => format!("Element {name} prefix is unbound").into(),
@@ -161,7 +158,8 @@ impl Error {
     #[cold]
     #[doc(hidden)]
     #[allow(deprecated)]
-    #[must_use] pub fn msg(&self) -> &str {
+    #[must_use]
+    pub fn msg(&self) -> &str {
         use self::ErrorKind::{Io, Syntax, UnexpectedEof, Utf8};
         match &self.kind {
             Io(io_error) => io_error.description(),
@@ -188,7 +186,7 @@ impl error::Error for Error {
 impl<'a, P, M> From<(&'a P, M)> for Error where P: Position, M: Into<Cow<'static, str>> {
     #[cold]
     fn from(orig: (&'a P, M)) -> Self {
-        Error {
+        Self {
             pos: orig.0.position(),
             kind: ErrorKind::Syntax(orig.1.into()),
         }
@@ -199,7 +197,7 @@ impl From<util::CharReadError> for Error {
     #[cold]
     fn from(e: util::CharReadError) -> Self {
         use crate::util::CharReadError::{Io, UnexpectedEof, Utf8};
-        Error {
+        Self {
             pos: TextPosition::new(),
             kind: match e {
                 UnexpectedEof => ErrorKind::UnexpectedEof,
@@ -213,7 +211,7 @@ impl From<util::CharReadError> for Error {
 impl From<io::Error> for Error {
     #[cold]
     fn from(e: io::Error) -> Self {
-        Error {
+        Self {
             pos: TextPosition::new(),
             kind: ErrorKind::Io(e),
         }
@@ -234,7 +232,7 @@ impl Clone for ErrorKind {
 }
 impl PartialEq for ErrorKind {
     #[allow(deprecated)]
-    fn eq(&self, other: &ErrorKind) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         use self::ErrorKind::{Io, Syntax, UnexpectedEof, Utf8};
         match (self, other) {
             (UnexpectedEof, UnexpectedEof) => true,

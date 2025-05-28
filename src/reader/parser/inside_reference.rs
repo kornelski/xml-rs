@@ -1,8 +1,8 @@
-use crate::reader::error::SyntaxError;
-use std::char;
-use crate::common::{is_name_char, is_name_start_char, is_whitespace_char};
-use crate::reader::lexer::Token;
 use super::{PullParser, Result, State};
+use crate::common::{is_name_char, is_name_start_char, is_whitespace_char};
+use crate::reader::error::SyntaxError;
+use crate::reader::lexer::Token;
+use std::char;
 
 impl PullParser {
     pub fn inside_reference(&mut self, t: Token) -> Option<Result> {
@@ -11,7 +11,7 @@ impl PullParser {
                              self.data.ref_data.is_empty() && (is_name_start_char(c) || c == '#') => {
                 self.data.ref_data.push(c);
                 None
-            }
+            },
 
             Token::ReferenceEnd => {
                 let name = self.data.take_ref_data();
@@ -27,7 +27,7 @@ impl PullParser {
                     "quot" => Some('"'),
                     _ if name.starts_with('#') => match self.numeric_reference_from_str(&name[1..]) {
                         Ok(c) => Some(c),
-                        Err(e) => return Some(self.error(e))
+                        Err(e) => return Some(self.error(e)),
                     },
                     _ => None,
                 };
@@ -54,7 +54,7 @@ impl PullParser {
                     self.inside_whitespace = false;
                 }
                 self.into_state_continue(prev_st)
-            }
+            },
 
             _ => Some(self.error(SyntaxError::UnexpectedTokenInEntity(t))),
         }
@@ -69,9 +69,7 @@ impl PullParser {
         match char::from_u32(val) {
             Some(c) if self.is_valid_xml_char(c) => Ok(c),
             Some(_) if self.config.c.replace_unknown_entity_references => Ok('\u{fffd}'),
-            None if self.config.c.replace_unknown_entity_references => {
-                Ok('\u{fffd}')
-            },
+            None if self.config.c.replace_unknown_entity_references => Ok('\u{fffd}'),
             _ => Err(SyntaxError::InvalidCharacterEntity(val)),
         }
     }

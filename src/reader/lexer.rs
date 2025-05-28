@@ -2,16 +2,13 @@
 //!
 //! This module is for internal use. Use `xml::pull` module to do parsing.
 
-
-use crate::reader::ErrorKind;
+use crate::common::{is_name_char, is_whitespace_char, is_xml10_char, is_xml11_char, Position, TextPosition};
 use crate::reader::error::SyntaxError;
-use std::collections::VecDeque;
-use std::fmt;
-use std::io::Read;
-use std::result;
-use crate::common::{is_name_char, is_whitespace_char, Position, TextPosition, is_xml10_char, is_xml11_char};
-use crate::reader::Error;
+use crate::reader::{Error, ErrorKind};
 use crate::util::{CharReader, Encoding};
+use std::collections::VecDeque;
+use std::io::Read;
+use std::{fmt, result};
 
 use super::ParserConfig2;
 
@@ -55,6 +52,8 @@ pub(crate) enum Token {
     ReferenceEnd,
     /// `<!` of `ENTITY`
     MarkupDeclarationStart,
+    /// End of file
+    Eof,
 }
 
 impl fmt::Display for Token {
@@ -80,7 +79,7 @@ impl fmt::Display for Token {
                 Token::SingleQuote                => "'",
                 Token::DoubleQuote                => "\"",
                 Token::MarkupDeclarationStart     => "<!",
-                Token::Character(_)               => {
+                Token::Eof | Token::Character(_)  => {
                     debug_assert!(false);
                     ""
                 },
@@ -90,24 +89,24 @@ impl fmt::Display for Token {
 }
 
 impl Token {
-    pub fn as_static_str(self) -> Option<&'static str> {
+    pub const fn as_static_str(self) -> Option<&'static str> {
         match self {
-            Token::OpeningTagStart            => Some("<"),
-            Token::ProcessingInstructionStart => Some("<?"),
-            Token::DoctypeStart               => Some("<!DOCTYPE"),
-            Token::ClosingTagStart            => Some("</"),
-            Token::CommentStart               => Some("<!--"),
-            Token::CDataStart                 => Some("<![CDATA["),
-            Token::TagEnd                     => Some(">"),
-            Token::EmptyTagEnd                => Some("/>"),
-            Token::ProcessingInstructionEnd   => Some("?>"),
-            Token::CommentEnd                 => Some("-->"),
-            Token::CDataEnd                   => Some("]]>"),
-            Token::ReferenceStart             => Some("&"),
-            Token::ReferenceEnd               => Some(";"),
-            Token::EqualsSign                 => Some("="),
-            Token::SingleQuote                => Some("'"),
-            Token::DoubleQuote                => Some("\""),
+            Self::OpeningTagStart            => Some("<"),
+            Self::ProcessingInstructionStart => Some("<?"),
+            Self::DoctypeStart               => Some("<!DOCTYPE"),
+            Self::ClosingTagStart            => Some("</"),
+            Self::CommentStart               => Some("<!--"),
+            Self::CDataStart                 => Some("<![CDATA["),
+            Self::TagEnd                     => Some(">"),
+            Self::EmptyTagEnd                => Some("/>"),
+            Self::ProcessingInstructionEnd   => Some("?>"),
+            Self::CommentEnd                 => Some("-->"),
+            Self::CDataEnd                   => Some("]]>"),
+            Self::ReferenceStart             => Some("&"),
+            Self::ReferenceEnd               => Some(";"),
+            Self::EqualsSign                 => Some("="),
+            Self::SingleQuote                => Some("'"),
+            Self::DoubleQuote                => Some("\""),
             _                                 => None
         }
     }
@@ -115,7 +114,7 @@ impl Token {
     // using String.push_str(token.to_string()) is simply way too slow
     pub fn push_to_string(self, target: &mut String) {
         match self {
-            Token::Character(c) => {
+            Self::Character(c) => {
                 debug_assert!(is_xml10_char(c) || is_xml11_char(c));
                 target.push(c);
             },
@@ -245,12 +244,12 @@ impl Position for Lexer {
 
 impl Lexer {
     /// Returns a new lexer with default state.
-    pub(crate) fn new(config: &ParserConfig2) -> Lexer {
-        Lexer {
+    pub(crate) fn new(config: &ParserConfig2) -> Self {
+        Self {
             reader: CharReader::new(),
             pos: TextPosition::new(),
             head_pos: TextPosition::new(),
-            char_queue: VecDeque::with_capacity(4),  // TODO: check size
+            char_queue: VecDeque::with_capacity(4), // TODO: check size
             st: State::Normal,
             normal_state: State::Normal,
             inside_token: false,
@@ -264,7 +263,7 @@ impl Lexer {
         }
     }
 
-    pub(crate) fn encoding(&mut self) -> Encoding {
+    pub(crate) fn encoding(&self) -> Encoding {
         self.reader.encoding
     }
 
@@ -287,12 +286,12 @@ impl Lexer {
     ///
     /// Return value:
     /// * `Err(reason) where reason: reader::Error` - when an error occurs;
-    /// * `Ok(None)` - upon end of stream is reached;
-    /// * `Ok(Some(token)) where token: Token` - in case a complete-token has been read from the stream.
-    pub fn next_token<B: Read>(&mut self, b: &mut B) -> Result {
+    /// * `Ok(Token::Eof)` - upon end of stream is reached;
+    /// * `Ok(token) where token: Token` - in case a complete-token has been read from the stream.
+    pub fn next_token<B: Read>(&mut self, b: &mut B) -> Result<Token> {
         // Already reached end of buffer
         if self.eof_handled {
-            return Ok(None);
+            return Ok(Token::Eof);
         }
 
         if !self.inside_token {
@@ -304,17 +303,12 @@ impl Lexer {
         while let Some(c) = self.char_queue.pop_front() {
             if let Some(t) = self.dispatch_char(c)? {
                 self.inside_token = false;
-                return Ok(Some(t));
+                return Ok(t);
             }
         }
         // if char_queue is empty, all circular reparsing is done
         self.reparse_depth = 0;
-        loop {
-            let c = match self.reader.next_char_from(b)? {
-                Some(c) => c,  // got next char
-                None => break, // nothing to read left
-            };
-
+        while let Some(c) = self.reader.next_char_from(b)? {
             if c == '\n' {
                 self.head_pos.new_line();
             } else {
@@ -323,7 +317,7 @@ impl Lexer {
 
             if let Some(t) = self.dispatch_char(c)? {
                 self.inside_token = false;
-                return Ok(Some(t));
+                return Ok(t);
             }
         }
 
@@ -331,7 +325,7 @@ impl Lexer {
     }
 
     #[inline(never)]
-    fn end_of_stream(&mut self) -> Result {
+    fn end_of_stream(&mut self) -> Result<Token> {
         // Handle end of stream
         self.eof_handled = true;
         self.pos = self.head_pos;
@@ -345,17 +339,16 @@ impl Lexer {
             State::InsideDoctype | State::InsideMarkupDeclarationQuotedString(_) =>
                 Err(self.error(SyntaxError::UnexpectedEof)),
             State::EmptyTagClosing =>
-                Ok(Some(Token::Character('/'))),
+                Ok(Token::Character('/')),
             State::CommentClosing(ClosingSubstate::First) =>
-                Ok(Some(Token::Character('-'))),
+                Ok(Token::Character('-')),
             State::InvalidCDataClosing(ClosingSubstate::First) =>
-                Ok(Some(Token::Character(']'))),
+                Ok(Token::Character(']')),
             State::InvalidCDataClosing(ClosingSubstate::Second) => {
                 self.eof_handled = false;
-                Ok(Some(self.move_to_with_unread(State::Normal, &[']'], Token::Character(']'))))
+                Ok(self.move_to_with_unread(State::Normal, &[']'], Token::Character(']')))
             },
-            State::Normal =>
-                Ok(None),
+            State::Normal => Ok(Token::Eof),
         }
     }
 
@@ -367,7 +360,6 @@ impl Lexer {
             kind: ErrorKind::Syntax(e.to_cow()),
         }
     }
-
 
     #[inline(never)]
     fn dispatch_char(&mut self, c: char) -> Result {
@@ -425,7 +417,7 @@ impl Lexer {
 
         self.reparse_depth += 1;
         if self.reparse_depth > self.max_entity_expansion_depth || self.char_queue.len() > self.max_entity_expansion_length {
-            return Err(self.error(SyntaxError::EntityTooBig))
+            return Err(self.error(SyntaxError::EntityTooBig));
         }
 
         self.eof_handled = false;
@@ -660,7 +652,7 @@ mod tests {
     macro_rules! assert_oks(
         (for $lex:ident and $buf:ident ; $($e:expr)+) => ({
             $(
-                assert_eq!(Ok(Some($e)), $lex.next_token(&mut $buf));
+                assert_eq!(Ok($e), $lex.next_token(&mut $buf));
              )+
         })
     );
@@ -677,7 +669,7 @@ mod tests {
 
     macro_rules! assert_none(
         (for $lex:ident and $buf:ident) => (
-            assert_eq!(Ok(None), $lex.next_token(&mut $buf))
+            assert_eq!(Ok(Token::Eof), $lex.next_token(&mut $buf))
         )
     );
 
@@ -1104,7 +1096,7 @@ mod tests {
             let (mut lex, mut buf) = make_lex_and_buf($data);
             lex.disable_errors();
             for c in $chunk.chars() {
-                assert_eq!(Ok(Some(Token::Character(c))), lex.next_token(&mut buf));
+                assert_eq!(Ok(Token::Character(c)), lex.next_token(&mut buf));
             }
             assert_oks!(for lex and buf ;
                 Token::Character($app)
@@ -1138,8 +1130,6 @@ mod tests {
         check_case!("<!DOCTY",  'e'; "<!DOCTYe"  ; 0, 0, "Unexpected token '<!DOCTY' before 'e'");
         check_case!("<!DOCTYP", 'f'; "<!DOCTYPf" ; 0, 0, "Unexpected token '<!DOCTYP' before 'f'");
     }
-
-
 
     #[test]
     fn issue_98_cdata_ending_with_right_bracket() {

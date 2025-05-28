@@ -2,8 +2,7 @@
 
 use std::io::{Cursor, Write};
 
-use xml::reader::ParserConfig;
-use xml::reader::XmlEvent;
+use xml::reader::{ParserConfig, XmlEvent};
 use xml::EventReader;
 
 macro_rules! assert_match {
@@ -91,8 +90,8 @@ fn reading_streamed_content2() {
     match reader.next() {
         None | Some(Ok(_)) => {
             panic!("At this point, parser must not detect something.");
-        }
-        Some(Err(_)) => {}
+        },
+        Some(Err(_)) => {},
     };
     write_and_reset_position(reader.source_mut(), b" />");
     assert_match!(reader.next(), Some(Ok(XmlEvent::StartElement { ref name, .. })) if name.local_name == "child-4");

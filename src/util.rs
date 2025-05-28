@@ -11,15 +11,15 @@ pub enum CharReadError {
 
 impl From<str::Utf8Error> for CharReadError {
     #[cold]
-    fn from(e: str::Utf8Error) -> CharReadError {
-        CharReadError::Utf8(e)
+    fn from(e: str::Utf8Error) -> Self {
+        Self::Utf8(e)
     }
 }
 
 impl From<io::Error> for CharReadError {
     #[cold]
-    fn from(e: io::Error) -> CharReadError {
-        CharReadError::Io(e)
+    fn from(e: io::Error) -> Self {
+        Self::Io(e)
     }
 }
 
@@ -68,13 +68,13 @@ impl FromStr for Encoding {
 
     fn from_str(val: &str) -> Result<Self, Self::Err> {
         if ["utf-8", "utf8"].into_iter().any(move |label| icmp(label, val)) {
-            Ok(Encoding::Utf8)
+            Ok(Self::Utf8)
         } else if ["iso-8859-1", "latin1"].into_iter().any(move |label| icmp(label, val)) {
-            Ok(Encoding::Latin1)
+            Ok(Self::Latin1)
         } else if ["utf-16", "utf16"].into_iter().any(move |label| icmp(label, val)) {
-            Ok(Encoding::Utf16)
+            Ok(Self::Utf16)
         } else if ["ascii", "us-ascii"].into_iter().any(move |label| icmp(label, val)) {
-            Ok(Encoding::Ascii)
+            Ok(Self::Ascii)
         } else {
             Err("unknown encoding name")
         }
@@ -85,14 +85,14 @@ impl fmt::Display for Encoding {
     #[cold]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Encoding::Utf8 |
-            Encoding::Default => "UTF-8",
-            Encoding::Latin1 => "ISO-8859-1",
-            Encoding::Ascii => "US-ASCII",
-            Encoding::Utf16Be |
-            Encoding::Utf16Le |
-            Encoding::Utf16 => "UTF-16",
-            Encoding::Unknown => "(unknown)",
+            Self::Utf8 |
+            Self::Default => "UTF-8",
+            Self::Latin1 => "ISO-8859-1",
+            Self::Ascii => "US-ASCII",
+            Self::Utf16Be |
+            Self::Utf16Le |
+            Self::Utf16 => "UTF-16",
+            Self::Unknown => "(unknown)",
         })
     }
 }
@@ -102,10 +102,8 @@ pub(crate) struct CharReader {
 }
 
 impl CharReader {
-    pub fn new() -> Self {
-        Self {
-            encoding: Encoding::Unknown,
-        }
+    pub const fn new() -> Self {
+        Self { encoding: Encoding::Unknown }
     }
 
     pub fn next_char_from<R: Read>(&mut self, source: &mut R) -> Result<Option<char>, CharReadError> {
@@ -114,7 +112,7 @@ impl CharReader {
 
         let mut buf = [0u8; MAX_CODEPOINT_LEN];
         let mut pos = 0;
-        loop {
+        while pos < MAX_CODEPOINT_LEN {
             let next = match bytes.next() {
                 Some(Ok(b)) => b,
                 Some(Err(e)) => return Err(e.into()),
@@ -151,32 +149,8 @@ impl CharReader {
                 Encoding::Unknown | Encoding::Utf16 => {
                     buf[pos] = next;
                     pos += 1;
-
-                    // sniff BOM
-                    if pos <= 3 && buf[..pos] == [0xEF, 0xBB, 0xBF][..pos] {
-                        if pos == 3 && self.encoding != Encoding::Utf16 {
-                            pos = 0;
-                            self.encoding = Encoding::Utf8;
-                        }
-                    } else if pos <= 2 && buf[..pos] == [0xFE, 0xFF][..pos] {
-                        if pos == 2 {
-                            pos = 0;
-                            self.encoding = Encoding::Utf16Be;
-                        }
-                    } else if pos <= 2 && buf[..pos] == [0xFF, 0xFE][..pos] {
-                        if pos == 2 {
-                            pos = 0;
-                            self.encoding = Encoding::Utf16Le;
-                        }
-                    } else if pos == 1 && self.encoding == Encoding::Utf16 {
-                        // sniff ASCII char in UTF-16
-                        self.encoding = if next == 0 { Encoding::Utf16Be } else { Encoding::Utf16Le };
-                    } else {
-                        // UTF-8 is the default, but XML decl can change it to other 8-bit encoding
-                        self.encoding = Encoding::Default;
-                        if pos == 1 && next.is_ascii() {
-                            return Ok(Some(next.into()));
-                        }
+                    if let Some(value) = self.sniff_bom(&buf[..pos], &mut pos) {
+                        return value;
                     }
                 },
                 Encoding::Utf16Be => {
@@ -186,10 +160,8 @@ impl CharReader {
                         if let Some(Ok(c)) = char::decode_utf16([u16::from_be_bytes(buf[..2].try_into().unwrap())]).next() {
                             return Ok(Some(c));
                         }
-                    } else if pos == 4 { // surrogate
-                        return char::decode_utf16([u16::from_be_bytes(buf[..2].try_into().unwrap()), u16::from_be_bytes(buf[2..4].try_into().unwrap())])
-                            .next().transpose()
-                            .map_err(|e| CharReadError::Io(io::Error::new(io::ErrorKind::InvalidData, e)));
+                    } else if pos == 4 {
+                        return Self::surrogate([u16::from_be_bytes(buf[..2].try_into().unwrap()), u16::from_be_bytes(buf[2..4].try_into().unwrap())]);
                     }
                 },
                 Encoding::Utf16Le => {
@@ -199,14 +171,49 @@ impl CharReader {
                         if let Some(Ok(c)) = char::decode_utf16([u16::from_le_bytes(buf[..2].try_into().unwrap())]).next() {
                             return Ok(Some(c));
                         }
-                    } else if pos == 4 { // surrogate
-                        return char::decode_utf16([u16::from_le_bytes(buf[..2].try_into().unwrap()), u16::from_le_bytes(buf[2..4].try_into().unwrap())])
-                            .next().transpose()
-                            .map_err(|e| CharReadError::Io(io::Error::new(io::ErrorKind::InvalidData, e)));
+                    } else if pos == 4 {
+                        return Self::surrogate([u16::from_le_bytes(buf[..2].try_into().unwrap()), u16::from_le_bytes(buf[2..4].try_into().unwrap())]);
                     }
                 },
             }
         }
+        Err(CharReadError::Io(io::ErrorKind::InvalidData.into()))
+    }
+
+    #[cold]
+    fn sniff_bom(&mut self, buf: &[u8], pos: &mut usize) -> Option<Result<Option<char>, CharReadError>> {
+        // sniff BOM
+        if buf.len() <= 3 && [0xEF, 0xBB, 0xBF].starts_with(buf) {
+            if buf.len() == 3 && self.encoding != Encoding::Utf16 {
+                *pos = 0;
+                self.encoding = Encoding::Utf8;
+            }
+        } else if buf.len() <= 2 && [0xFE, 0xFF].starts_with(buf) {
+            if buf.len() == 2 {
+                *pos = 0;
+                self.encoding = Encoding::Utf16Be;
+            }
+        } else if buf.len() <= 2 && [0xFF, 0xFE].starts_with(buf) {
+            if buf.len() == 2 {
+                *pos = 0;
+                self.encoding = Encoding::Utf16Le;
+            }
+        } else if buf.len() == 1 && self.encoding == Encoding::Utf16 {
+            // sniff ASCII char in UTF-16
+            self.encoding = if buf[0] == 0 { Encoding::Utf16Be } else { Encoding::Utf16Le };
+        } else {
+            // UTF-8 is the default, but XML decl can change it to other 8-bit encoding
+            self.encoding = Encoding::Default;
+            if buf.len() == 1 && buf[0].is_ascii() {
+                return Some(Ok(Some(buf[0].into())));
+            }
+        }
+        None
+    }
+
+    fn surrogate(buf: [u16; 2]) -> Result<Option<char>, CharReadError> {
+        char::decode_utf16(buf).next().transpose()
+            .map_err(|e| CharReadError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))
     }
 }
 
@@ -218,7 +225,7 @@ mod tests {
     fn test_next_char_from() {
         use std::io;
 
-        let mut bytes: &[u8] = "correct".as_bytes();    // correct ASCII
+        let mut bytes: &[u8] = b"correct";    // correct ASCII
         assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), Some('c'));
 
         let mut bytes: &[u8] = b"\xEF\xBB\xBF\xE2\x80\xA2!";  // BOM
@@ -265,6 +272,9 @@ mod tests {
 
         let mut bytes: &[u8] = b"\x42\x00";
         assert_eq!(CharReader { encoding: Encoding::Utf16 }.next_char_from(&mut bytes).unwrap(), Some('B'));
+
+        let mut bytes: &[u8] = &[0xEF, 0xBB, 0xBF, 0xFF, 0xFF];
+        assert!(CharReader { encoding: Encoding::Utf16 }.next_char_from(&mut bytes).is_err());
 
         let mut bytes: &[u8] = b"\x00";
         assert!(CharReader { encoding: Encoding::Utf16Be }.next_char_from(&mut bytes).is_err());

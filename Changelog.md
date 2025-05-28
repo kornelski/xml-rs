@@ -1,3 +1,27 @@
+## Version 0.8.25
+
+* `TryFrom` for converting from reader to writer events, to make `.as_writer_event()` more discoverable.
+
+## Version 0.8.24
+
+* Fixed reporting of line/column position of CDATA when trimming whitespace
+
+## Version 0.8.23
+
+* StartDocument event will consistently use uppercase "UTF-8" name for encoding when the document did not declare it expicitly, but beware that documents can still use lowercase encoding names, so you must always use case-insensitive comparisons.
+
+## Version 0.8.22
+
+* Ability to retrieve the whole DOCTYPE. For backwards compatibility, it's a getter on the reader, not an event.
+
+## Version 0.8.21
+
+* Added `EventWriter::inner_ref`
+* ~15% performance improvement
+
+## Version 0.8.20
+
+* Fixed escaping of literal `]]>` in CDATA
 
 ## Version 0.8.19
 

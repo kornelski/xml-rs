@@ -27,15 +27,15 @@ impl<W: Write> EventWriter<W> {
     /// Creates a new `EventWriter` out of an `std::io::Write` instance using the default
     /// configuration.
     #[inline]
-    pub fn new(sink: W) -> EventWriter<W> {
-        EventWriter::new_with_config(sink, EmitterConfig::new())
+    pub fn new(sink: W) -> Self {
+        Self::new_with_config(sink, EmitterConfig::new())
     }
 
     /// Creates a new `EventWriter` out of an `std::io::Write` instance using the provided
     /// configuration.
     #[inline]
-    pub fn new_with_config(sink: W, config: EmitterConfig) -> EventWriter<W> {
-        EventWriter {
+    pub fn new_with_config(sink: W, config: EmitterConfig) -> Self {
+        Self {
             sink,
             emitter: Emitter::new(config),
         }
@@ -57,12 +57,12 @@ impl<W: Write> EventWriter<W> {
             XmlEvent::StartElement { name, attributes, namespace } => {
                 self.emitter.namespace_stack_mut().push_empty().checked_target().extend(namespace.as_ref());
                 self.emitter.emit_start_element(&mut self.sink, name, &attributes)
-            }
+            },
             XmlEvent::EndElement { name } => {
                 let r = self.emitter.emit_end_element(&mut self.sink, name);
                 self.emitter.namespace_stack_mut().try_pop();
                 r
-            }
+            },
             XmlEvent::Comment(content) => self.emitter.emit_comment(&mut self.sink, content),
             XmlEvent::CData(content) => self.emitter.emit_cdata(&mut self.sink, content),
             XmlEvent::Characters(content) => self.emitter.emit_characters(&mut self.sink, content),
@@ -77,6 +77,11 @@ impl<W: Write> EventWriter<W> {
     /// of the stream itself.
     pub fn inner_mut(&mut self) -> &mut W {
         &mut self.sink
+    }
+
+    /// Returns an immutable reference to the underlying `Writer`.
+    pub fn inner_ref(&self) -> &W {
+        &self.sink
     }
 
     /// Unwraps this `EventWriter`, returning the underlying writer.

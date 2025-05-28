@@ -1,5 +1,4 @@
 //! Contains XML attributes manipulation types and functions.
-//!
 
 use std::fmt;
 
@@ -18,7 +17,7 @@ pub struct Attribute<'a> {
     pub value: &'a str,
 }
 
-impl<'a> fmt::Display for Attribute<'a> {
+impl fmt::Display for Attribute<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}=\"{}\"", self.name, Escaped::<AttributeEscapes>::new(self.value))
     }
@@ -38,7 +37,7 @@ impl<'a> Attribute<'a> {
     /// Creates a borrowed attribute using the provided borrowed name and a borrowed string value.
     #[inline]
     #[must_use]
-    pub fn new(name: Name<'a>, value: &'a str) -> Attribute<'a> {
+    pub const fn new(name: Name<'a>, value: &'a str) -> Self {
         Attribute { name, value }
     }
 }
@@ -68,11 +67,8 @@ impl OwnedAttribute {
 
     /// Creates a new owned attribute using the provided owned name and an owned string value.
     #[inline]
-    pub fn new<S: Into<String>>(name: OwnedName, value: S) -> OwnedAttribute {
-        OwnedAttribute {
-            name,
-            value: value.into(),
-        }
+    pub fn new<S: Into<String>>(name: OwnedName, value: S) -> Self {
+        Self { name, value: value.into() }
     }
 }
 

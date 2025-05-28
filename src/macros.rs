@@ -21,7 +21,7 @@ macro_rules! gen_setter {
             /// <small>See [`ParserConfig`][crate::ParserConfig] fields docs for details</small>
             #[inline]
             #[must_use]
-            pub fn $field(mut self, value: $t) -> Self {
+            pub const fn $field(mut self, value: $t) -> Self {
                 self.$field = value;
                 self
             }
@@ -32,7 +32,7 @@ macro_rules! gen_setter {
             /// <small>See [`ParserConfig`][crate::ParserConfig] fields docs for details</small>
             #[inline]
             #[must_use]
-            pub fn $field(mut self, value: $t) -> Self {
+            pub const fn $field(mut self, value: $t) -> Self {
                 self.c.$field = value;
                 self
             }

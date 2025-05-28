@@ -1,10 +1,10 @@
 //! See <https://lib.rs/crates/svg-hush> for a real-world example.
 
-use xml::EmitterConfig;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use xml::reader::{ParserConfig, Result};
+use xml::EmitterConfig;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arg = std::env::args_os().nth(1);
@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match reader_event {
             xml::reader::XmlEvent::EndDocument => break,
             xml::reader::XmlEvent::StartElement { name, mut attributes, namespace } => {
-                let event = xml::writer::XmlEvent::StartElement  {
+                let event = xml::writer::XmlEvent::StartElement {
                     name: name.borrow(),
                     namespace: namespace.borrow(),
                     attributes: attributes.iter_mut().map(|attr| {
@@ -54,9 +54,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 if let Some(writer_event) = other.as_writer_event() {
                     writer.write(writer_event)?;
                 }
-            }
+            },
         }
-
     }
     Ok(())
 }

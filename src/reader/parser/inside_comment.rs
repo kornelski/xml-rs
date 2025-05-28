@@ -14,7 +14,7 @@ impl PullParser {
             Token::CommentEnd => {
                 let data = self.take_buf();
                 self.into_state_emit(State::OutsideTag, Ok(XmlEvent::Comment(data)))
-            }
+            },
 
             Token::Character(c) if !self.is_valid_xml_char(c) => {
                 Some(self.error(SyntaxError::InvalidCharacterEntity(c as u32)))
@@ -28,7 +28,7 @@ impl PullParser {
                 }
                 t.push_to_string(&mut self.buf);
                 None
-            }
+            },
         }
     }
 }

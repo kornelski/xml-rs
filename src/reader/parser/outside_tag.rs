@@ -1,5 +1,5 @@
-use crate::reader::error::SyntaxError;
 use crate::common::is_whitespace_char;
+use crate::reader::error::SyntaxError;
 use crate::reader::events::XmlEvent;
 use crate::reader::lexer::Token;
 
@@ -80,8 +80,9 @@ impl PullParser {
 
             Token::CDataStart if self.depth() > 0 && self.config.c.coalesce_characters && self.config.c.cdata_to_characters => {
                 if self.buf.is_empty() {
-                    self.push_pos();
+                    self.push_pos(); // CDataEnd will pop pos if the buffer remains empty
                 }
+                // if coalescing chars, continue without event
                 self.into_state_continue(State::InsideCData)
             },
 
@@ -91,6 +92,8 @@ impl PullParser {
                 let mut next_event = if self.buf_has_data() {
                     let buf = self.take_buf();
                     if self.inside_whitespace && self.config.c.trim_whitespace {
+                        // there will be no event emitted for this, but start of buffering has pushed a pos
+                        self.next_pos();
                         None
                     } else if self.inside_whitespace && !self.config.c.whitespace_to_characters {
                         debug_assert!(buf.chars().all(|ch| ch.is_whitespace()), "ws={buf:?}");
@@ -132,6 +135,7 @@ impl PullParser {
                         if let Some(e) = self.set_encountered(Encountered::Doctype) {
                             next_event = Some(e);
                         }
+                        self.data.doctype = Some(Token::DoctypeStart.to_string());
 
                         // We don't have a doctype event so skip this position
                         // FIXME: update when we have a doctype event
@@ -146,9 +150,9 @@ impl PullParser {
                         self.into_state(State::InsideCData, next_event)
                     },
 
-                    _ => Some(self.error(SyntaxError::UnexpectedToken(t)))
+                    _ => Some(self.error(SyntaxError::UnexpectedToken(t))),
                 }
-            }
+            },
         }
     }
 
@@ -178,7 +182,7 @@ impl PullParser {
             Token::CommentStart => {
                 let next_event = self.set_encountered(Encountered::Comment);
                 self.into_state(State::InsideComment, next_event)
-            }
+            },
 
             Token::OpeningTagStart => {
                 let next_event = self.set_encountered(Encountered::Element);
@@ -188,6 +192,8 @@ impl PullParser {
 
             Token::DoctypeStart => {
                 let next_event = self.set_encountered(Encountered::Doctype);
+                self.data.doctype = Some(Token::DoctypeStart.to_string());
+
                 // We don't have a doctype event so skip this position
                 // FIXME: update when we have a doctype event
                 self.next_pos();

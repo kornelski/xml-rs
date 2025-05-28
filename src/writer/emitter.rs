@@ -1,8 +1,6 @@
 use std::error::Error;
-use std::fmt;
-use std::io;
 use std::io::prelude::*;
-use std::result;
+use std::{fmt, io, result};
 
 use crate::attribute::Attribute;
 use crate::common;
@@ -36,8 +34,8 @@ pub enum EmitterError {
 
 impl From<io::Error> for EmitterError {
     #[cold]
-    fn from(err: io::Error) -> EmitterError {
-        EmitterError::Io(err)
+    fn from(err: io::Error) -> Self {
+        Self::Io(err)
     }
 }
 
@@ -46,11 +44,11 @@ impl fmt::Display for EmitterError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("emitter error: ")?;
         match self {
-            EmitterError::Io(e) => write!(f, "I/O error: {e}"),
-            EmitterError::DocumentStartAlreadyEmitted => f.write_str("document start event has already been emitted"),
-            EmitterError::LastElementNameNotAvailable => f.write_str("last element name is not available"),
-            EmitterError::EndElementNameIsNotEqualToLastStartElementName => f.write_str("end element name is not equal to last start element name"),
-            EmitterError::EndElementNameIsNotSpecified => f.write_str("end element name is not specified and can't be inferred"),
+            Self::Io(e) => write!(f, "I/O error: {e}"),
+            Self::DocumentStartAlreadyEmitted => f.write_str("document start event has already been emitted"),
+            Self::LastElementNameNotAvailable => f.write_str("last element name is not available"),
+            Self::EndElementNameIsNotEqualToLastStartElementName => f.write_str("end element name is not equal to last start element name"),
+            Self::EndElementNameIsNotSpecified => f.write_str("end element name is not specified and can't be inferred"),
         }
     }
 }
@@ -78,11 +76,11 @@ pub struct Emitter {
 }
 
 impl Emitter {
-    pub fn new(config: EmitterConfig) -> Emitter {
+    pub fn new(config: EmitterConfig) -> Self {
         let mut indent_stack = Vec::with_capacity(16);
         indent_stack.push(IndentFlags::WroteNothing);
 
-        Emitter {
+        Self {
             config,
 
             nst: NamespaceStack::empty(),
@@ -136,7 +134,7 @@ impl Emitter {
         }
     }
 
-    fn write_newline<W: Write>(&mut self, target: &mut W, level: usize) -> Result<()> {
+    fn write_newline<W: Write>(&self, target: &mut W, level: usize) -> Result<()> {
         target.write_all(self.config.line_separator.as_bytes())?;
         for _ in 0..level {
             target.write_all(self.config.indent_string.as_bytes())?;
@@ -224,7 +222,7 @@ impl Emitter {
 
     fn check_document_started<W: Write>(&mut self, target: &mut W) -> Result<()> {
         if !self.start_document_emitted && self.config.write_document_declaration {
-            self.emit_start_document(target, common::XmlVersion::Version10, "utf-8", None)
+            self.emit_start_document(target, common::XmlVersion::Version10, "UTF-8", None)
         } else {
             Ok(())
         }
@@ -305,7 +303,7 @@ impl Emitter {
     }
 
     #[track_caller]
-    pub fn emit_current_namespace_attributes<W>(&mut self, target: &mut W) -> Result<()>
+    pub fn emit_current_namespace_attributes<W>(&self, target: &mut W) -> Result<()>
         where W: Write
     {
         for (prefix, uri) in self.nst.peek() {
@@ -319,13 +317,13 @@ impl Emitter {
                     write!(target, " xmlns=\"{uri}\"")
                 } else { Ok(()) },
                 // everything else
-                prefix => write!(target, " xmlns:{prefix}=\"{uri}\"")
+                prefix => write!(target, " xmlns:{prefix}=\"{uri}\""),
             }?;
         }
         Ok(())
     }
 
-    pub fn emit_attributes<W: Write>(&mut self, target: &mut W,
+    pub fn emit_attributes<W: Write>(&self, target: &mut W,
                                       attributes: &[Attribute<'_>]) -> Result<()> {
         for attr in attributes {            
             write!(target, " {}=\"", attr.name.repr_display())?;

@@ -73,8 +73,8 @@ impl Namespace {
     /// Returns an empty namespace.
     #[inline]
     #[must_use]
-    pub fn empty() -> Namespace {
-        Namespace(BTreeMap::new())
+    pub fn empty() -> Self {
+        Self(BTreeMap::new())
     }
 
     /// Checks whether this namespace is empty.
@@ -132,7 +132,7 @@ impl Namespace {
             Entry::Vacant(ve) => {
                 ve.insert(uri.into());
                 true
-            }
+            },
         }
     }
 
@@ -168,7 +168,7 @@ impl Namespace {
 
     /// Borrowed namespace for the writer
     #[must_use]
-    pub fn borrow(&self) -> Cow<'_, Self> {
+    pub const fn borrow(&self) -> Cow<'_, Self> {
         Cow::Borrowed(self)
     }
 
@@ -185,8 +185,8 @@ pub type NamespaceMappings<'a> = Map<
 >;
 
 impl<'a> IntoIterator for &'a Namespace {
-    type Item = UriMapping<'a>;
     type IntoIter = NamespaceMappings<'a>;
+    type Item = UriMapping<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         fn mapper<'a>((prefix, uri): (&'a String, &'a String)) -> UriMapping<'a> {
@@ -207,8 +207,8 @@ impl NamespaceStack {
     /// Returns an empty namespace stack.
     #[inline]
     #[must_use]
-    pub fn empty() -> NamespaceStack {
-        NamespaceStack(Vec::with_capacity(2))
+    pub fn empty() -> Self {
+        Self(Vec::with_capacity(2))
     }
 
     /// Returns a namespace stack with default items in it.
@@ -220,8 +220,8 @@ impl NamespaceStack {
     #[inline]
     #[must_use]
     #[allow(clippy::should_implement_trait)]
-    pub fn default() -> NamespaceStack {
-        let mut nst = NamespaceStack::empty();
+    pub fn default() -> Self {
+        let mut nst = Self::empty();
         nst.push_empty();
         // xml namespace
         nst.put(NS_XML_PREFIX, NS_XML_URI);
@@ -234,7 +234,7 @@ impl NamespaceStack {
 
     /// Adds an empty namespace to the top of this stack.
     #[inline]
-    pub fn push_empty(&mut self) -> &mut NamespaceStack {
+    pub fn push_empty(&mut self) -> &mut Self {
         self.0.push(Namespace::empty());
         self
     }
@@ -395,7 +395,7 @@ pub struct NamespaceStackMappings<'a> {
     used_keys: HashSet<&'a str>,
 }
 
-impl<'a> NamespaceStackMappings<'a> {
+impl NamespaceStackMappings<'_> {
     fn go_to_next_namespace(&mut self) -> bool {
         self.current_namespace = self.namespaces.next().map(|ns| ns.into_iter());
         self.current_namespace.is_some()
@@ -436,8 +436,8 @@ impl<'a> Iterator for NamespaceStackMappings<'a> {
 }
 
 impl<'a> IntoIterator for &'a NamespaceStack {
-    type Item = UriMapping<'a>;
     type IntoIter = NamespaceStackMappings<'a>;
+    type Item = UriMapping<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
         NamespaceStackMappings {
@@ -507,7 +507,7 @@ impl<'a> Extend<UriMapping<'a>> for NamespaceStack {
 /// ```
 pub struct CheckedTarget<'a>(&'a mut NamespaceStack);
 
-impl<'a, 'b> Extend<UriMapping<'b>> for CheckedTarget<'a> {
+impl<'b> Extend<UriMapping<'b>> for CheckedTarget<'_> {
     fn extend<T>(&mut self, iterable: T) where T: IntoIterator<Item=UriMapping<'b>> {
         for (prefix, uri) in iterable {
             self.0.put_checked(prefix, uri);

@@ -1,8 +1,8 @@
 //! Contains emitter configuration structure.
 
+use crate::writer::EventWriter;
 use std::borrow::Cow;
 use std::io::Write;
-use crate::writer::EventWriter;
 
 /// Emitter configuration structure.
 ///
@@ -98,8 +98,8 @@ impl EmitterConfig {
     /// ```
     #[inline]
     #[must_use]
-    pub fn new() -> EmitterConfig {
-        EmitterConfig {
+    pub fn new() -> Self {
+        Self {
             line_separator: "\n".into(),
             indent_string: "  ".into(), // two spaces
             perform_indent: false,
@@ -139,8 +139,8 @@ impl EmitterConfig {
 
 impl Default for EmitterConfig {
     #[inline]
-    fn default() -> EmitterConfig {
-        EmitterConfig::new()
+    fn default() -> Self {
+        Self::new()
     }
 }
 
