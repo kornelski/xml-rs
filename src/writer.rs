@@ -66,6 +66,7 @@ impl<W: Write> EventWriter<W> {
             XmlEvent::Comment(content) => self.emitter.emit_comment(&mut self.sink, content),
             XmlEvent::CData(content) => self.emitter.emit_cdata(&mut self.sink, content),
             XmlEvent::Characters(content) => self.emitter.emit_characters(&mut self.sink, content),
+            XmlEvent::RawCharacters(content) => self.emitter.emit_raw_characters(&mut self.sink, content),
         }
     }
 

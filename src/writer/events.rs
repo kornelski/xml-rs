@@ -91,6 +91,13 @@ pub enum XmlEvent<'a> {
     /// Contents of this event will be escaped if `perform_escaping` option is enabled,
     /// that is, every character invalid for PCDATA will appear as a character entity.
     Characters(&'a str),
+
+    /// Emits raw characters which will never be escaped.
+    ///
+    /// This event is only used for writing to an output stream, there is no equivalent
+    /// reader event. Care must be taken when using this event, as it can easily result
+    /// non-well-formed documents.
+    RawCharacters(&'a str),
 }
 
 impl<'a> XmlEvent<'a> {
@@ -142,6 +149,18 @@ impl<'a> XmlEvent<'a> {
     #[must_use]
     pub const fn characters(data: &'a str) -> Self {
         XmlEvent::Characters(data)
+    }
+
+    /// Returns a raw characters event.
+    ///
+    /// No escaping takes place.
+    /// This event is only used for writing to an output stream, there is no equivalent
+    /// reader event. Care must be taken when using this event, as it can easily result
+    /// non-well-formed documents.
+    #[inline]
+    #[must_use]
+    pub const fn raw_characters(data: &'a str) -> Self {
+        XmlEvent::RawCharacters(data)
     }
 
     /// Returns a comment event.

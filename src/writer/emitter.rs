@@ -405,6 +405,16 @@ impl Emitter {
         Ok(())
     }
 
+    pub fn emit_raw_characters<W: Write>(&mut self, target: &mut W, content: &str) -> Result<()> {
+        self.check_document_started(target)?;
+        self.fix_non_empty_element(target)?;
+
+        target.write_all(content.as_bytes())?;
+
+        self.after_text();
+        Ok(())
+    }
+
     pub fn emit_comment<W: Write>(&mut self, target: &mut W, content: &str) -> Result<()> {
         self.fix_non_empty_element(target)?;
 

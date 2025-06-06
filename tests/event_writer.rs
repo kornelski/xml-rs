@@ -293,3 +293,34 @@ fn accidental_cdata_suffix_in_characters_is_escaped() {
         assert!(matches!(r.next().unwrap(), XmlEvent::EndDocument));
     }
 }
+
+#[test]
+fn raw_characters() {
+    let mut b = Vec::new();
+    {
+        use xml::writer::XmlEvent;
+        let mut w = EmitterConfig::new()
+            .write_document_declaration(false)
+            .create_writer(&mut b);
+
+        unwrap_all! {
+            w.write(XmlEvent::start_element("root"));
+            w.write(XmlEvent::characters("[[a]]>b"));
+            w.write(XmlEvent::raw_characters("<a>b[c</a>"));
+            w.write(XmlEvent::end_element())
+        }
+    }
+
+    {
+        use xml::reader::{EventReader, XmlEvent};
+        let mut r = EventReader::new(&b[..]);
+        assert!(matches!(r.next().unwrap(), XmlEvent::StartDocument{..}));
+        assert!(matches!(r.next().unwrap(), XmlEvent::StartElement{..}));
+        assert_eq!(r.next().unwrap(), XmlEvent::Characters("[[a]]>b".into()));
+        assert!(matches!(r.next().unwrap(), XmlEvent::StartElement{..}));
+        assert_eq!(r.next().unwrap(), XmlEvent::Characters("b[c".into()));
+        assert!(matches!(r.next().unwrap(), XmlEvent::EndElement{..}));
+        assert!(matches!(r.next().unwrap(), XmlEvent::EndElement{..}));
+        assert!(matches!(r.next().unwrap(), XmlEvent::EndDocument));
+    }
+}
