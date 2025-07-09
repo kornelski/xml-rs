@@ -665,7 +665,7 @@ fn issue_attribues_have_no_default_namespace() {
         br#"<hello xmlns="urn:foo" x="y"/>"#,
         br#"
             |StartDocument(1.0, UTF-8)
-            |StartElement({urn:foo}hello [x="y"])
+            |StartElement({urn:foo}hello [{urn:foo}x="y"])
             |EndElement({urn:foo}hello)
             |EndDocument
         "#,

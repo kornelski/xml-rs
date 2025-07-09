@@ -603,13 +603,23 @@ impl PullParser {
 
         // check and fix accumulated attributes prefixes
         for attr in &mut attributes {
-            if let Some(ref pfx) = attr.name.prefix {
-                let new_ns = match self.nst.get(pfx) {
-                    Some("") => None, // default namespace
-                    Some(ns) => Some(ns.into()),
-                    None => return Some(self.error(SyntaxError::UnboundAttribute(attr.name.to_string().into()))),
-                };
-                attr.name.namespace = new_ns;
+            match &attr.name.prefix {
+               // If we have a prefix, use it as the namespace
+               Some(pfx)=> {
+                    let new_ns = match self.nst.get(pfx) {
+                        Some("") => None, // default namespace
+                        Some(ns) => Some(ns.into()),
+                        None => return Some(self.error(SyntaxError::UnboundAttribute(attr.name.to_string().into()))),
+                    };
+                    attr.name.namespace = new_ns;
+                }
+                // If we don't have a prefix
+                None => {
+                    // If the current element has default namespace, use it
+                    if name.namespace.is_some() && name.prefix.is_none() {
+                        attr.name.namespace = name.namespace.clone();
+                    }
+                }
             }
         }
 
@@ -755,6 +765,21 @@ mod tests {
         expect_event!(r, p, Ok(XmlEvent::StartElement { .. }));
         expect_event!(r, p, Ok(XmlEvent::Comment(s)) => s == "<text&x;> <!");
         expect_event!(r, p, Ok(XmlEvent::EndElement { .. }));
+        expect_event!(r, p, Ok(XmlEvent::EndDocument));
+    }
+
+    #[test]
+    fn issue_42_attr_with_default_namespace() {
+        let (mut r, mut p) = test_data!(r#"
+            <stuff xmlns="domain" a="123">foobar</stuff>
+        "#);
+
+        expect_event!(r, p, Ok(XmlEvent::StartDocument { .. }));
+        expect_event!(r, p, Ok(XmlEvent::StartElement { name, attributes, .. }) =>
+            name == OwnedName::qualified("stuff", "domain", None::<String>)
+            && *attributes.first().unwrap() == OwnedAttribute::new(OwnedName::qualified("a", "domain", None::<String>), "123")) ;
+        expect_event!(r, p, Ok(XmlEvent::Characters( .. )));
+        expect_event!(r, p, Ok(XmlEvent::EndElement { name, .. }) => name == OwnedName::qualified("stuff", "domain", None::<String>));
         expect_event!(r, p, Ok(XmlEvent::EndDocument));
     }
 
