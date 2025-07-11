@@ -380,11 +380,19 @@ impl Emitter {
         if self.config.cdata_to_characters {
             self.emit_characters(target, content)
         } else {
-            // TODO: escape ']]>' characters in CDATA as two adjacent CDATA blocks
             target.write_all(b"<![CDATA[")?;
-            target.write_all(content.as_bytes())?;
-            target.write_all(b"]]>")?;
 
+            for chunk in content.split_inclusive("]]>") {
+                let chunk_safe = chunk.strip_suffix("]]>");
+                let emit_escaped = chunk_safe.is_some();
+
+                target.write_all(chunk_safe.unwrap_or(chunk).as_bytes())?;
+                if emit_escaped {
+                    target.write_all(b"]]]]><![CDATA[>")?;
+                }
+            }
+
+            target.write_all(b"]]>")?;
             self.after_text();
 
             Ok(())
