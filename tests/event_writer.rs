@@ -169,7 +169,7 @@ fn writing_comments_with_indentation() {
             w.write(XmlEvent::start_element("hello"));
             w.write(XmlEvent::start_element("world"));
             w.write(XmlEvent::comment("  this is a manually padded comment\t"));
-            w.write(XmlEvent::comment("this is an unpadded comment"));
+            w.write(XmlEvent::comment("this is an unpadded ---- comment"));
             w.write(XmlEvent::end_element());
             w.write(XmlEvent::end_element())
         }
@@ -180,7 +180,7 @@ fn writing_comments_with_indentation() {
         "<hello>
   <world>
     <!--  this is a manually padded comment\t-->
-    <!-- this is an unpadded comment -->
+    <!-- this is an unpadded - -  comment -->
   </world>
 </hello>"
     );

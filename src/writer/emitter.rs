@@ -418,7 +418,15 @@ impl Emitter {
                 target.write_all(b" ")?;
             }
 
-            target.write_all(content.as_bytes())?;
+            for chunk in content.split_inclusive("--") {
+                let chunk_safe = chunk.strip_suffix("--");
+                let emit_escaped = chunk_safe.is_some();
+
+                target.write_all(chunk_safe.unwrap_or(chunk).as_bytes())?;
+                if emit_escaped {
+                    target.write_all(b"- ")?;
+                }
+            }
 
             if autopad_comments && !content.ends_with(char::is_whitespace) {
                 target.write_all(b" ")?;
