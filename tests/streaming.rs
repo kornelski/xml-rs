@@ -96,3 +96,22 @@ fn reading_streamed_content2() {
     write_and_reset_position(reader.source_mut(), b" />");
     assert_match!(reader.next(), Some(Ok(XmlEvent::StartElement { ref name, .. })) if name.local_name == "child-4");
 }
+
+#[test]
+fn stylesheet_pi_escaping() {
+    let source = r#"<?xml version="1.0" standalone="no"?>
+        <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN"
+        "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+        <?xml-stylesheet type="text/css" href="../resources/test.css" ?>
+        "#;
+
+
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    let pi = it.next();
+    assert!(matches!(pi, Some(Ok(XmlEvent::ProcessingInstruction { ref name, ref data })) if name == "xml-stylesheet" && data.as_deref() == Some(r#"type="text/css" href="../resources/test.css" "#)), "{pi:#?}");
+}
