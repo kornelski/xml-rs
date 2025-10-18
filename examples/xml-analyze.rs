@@ -5,8 +5,8 @@ use std::fs::File;
 use std::io::{self, BufReader, Read};
 use std::{cmp, env};
 
-use xml::ParserConfig;
 use xml::reader::XmlEvent;
+use xml::ParserConfig;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut file;
@@ -41,7 +41,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             XmlEvent::StartDocument { version, encoding, standalone } => {
                 println!(
                     "XML document version {}, encoded in {}, {}standalone",
-                    version, encoding, if standalone.unwrap_or(false) { "" } else { "not " }
+                    version,
+                    encoding,
+                    if standalone.unwrap_or(false) { "" } else { "not " }
                 );
             },
             XmlEvent::Doctype { syntax } => {

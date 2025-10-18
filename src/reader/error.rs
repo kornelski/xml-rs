@@ -150,7 +150,7 @@ pub struct Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        use self::ErrorKind::{Io, Syntax, UnexpectedEof, Utf8, EmitterError};
+        use self::ErrorKind::{EmitterError, Io, Syntax, UnexpectedEof, Utf8};
 
         write!(f, "{} ", self.pos)?;
         match &self.kind {
@@ -275,14 +275,14 @@ impl From<ImmutableEntitiesError> for Error {
 
 impl From<ErrorKind> for Error {
     fn from(kind: ErrorKind) -> Self {
-        Self{ kind, pos: TextPosition::new() }
+        Self { kind, pos: TextPosition::new() }
     }
 }
 
 impl Clone for ErrorKind {
     #[cold]
     fn clone(&self) -> Self {
-        use self::ErrorKind::{Io, Syntax, UnexpectedEof, Utf8, EmitterError};
+        use self::ErrorKind::{EmitterError, Io, Syntax, UnexpectedEof, Utf8};
         match self {
             UnexpectedEof => UnexpectedEof,
             Utf8(reason) => Utf8(*reason),

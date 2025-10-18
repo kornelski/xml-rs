@@ -345,9 +345,8 @@ impl Emitter {
         Ok(())
     }
 
-    pub fn emit_attributes<W: Write>(&self, target: &mut W,
-                                      attributes: &[Attribute<'_>]) -> Result<()> {
-        for attr in attributes {            
+    pub fn emit_attributes<W: Write>(&self, target: &mut W, attributes: &[Attribute<'_>]) -> Result<()> {
+        for attr in attributes {
             write!(target, " {}=\"", attr.name.repr_display())?;
             if self.config.perform_escaping {
                 write!(target, "{}", Escaped::<AttributeEscapes>::new(attr.value))?;
@@ -359,8 +358,7 @@ impl Emitter {
         Ok(())
     }
 
-    pub fn emit_end_element<W: Write>(&mut self, target: &mut W,
-                                      name: Option<Name<'_>>) -> Result<()> {
+    pub fn emit_end_element<W: Write>(&mut self, target: &mut W, name: Option<Name<'_>>) -> Result<()> {
         let owned_name = if self.config.keep_element_names_stack {
             Some(self.element_names.pop().ok_or(EmitterError::LastElementNameNotAvailable)?)
         } else {

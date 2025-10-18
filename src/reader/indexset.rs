@@ -28,8 +28,6 @@ impl AttributesSet {
     }
 
     fn hash(&self, val: &OwnedName) -> u64 {
-
-
         self.hasher.hash_one(val)
     }
 

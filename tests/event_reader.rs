@@ -2,7 +2,7 @@
 
 use std::fmt;
 use std::fs::File;
-use std::io::{BufRead, BufReader, Write, stderr};
+use std::io::{stderr, BufRead, BufReader, Write};
 use std::path::Path;
 
 use xml::common::Position;
@@ -885,7 +885,7 @@ fn retrieve_doctype() {
 fn trim_until_bar(s: String) -> String {
     match s.trim() {
         ts if ts.starts_with('|') => return ts[1..].to_owned(),
-        _ => {}
+        _ => {},
     }
     s
 }
@@ -964,7 +964,7 @@ fn skip() {
                     // After the skip, we should see "Hello" chars and
                     // the </a> end element
                     assert_eq!(Ok(XmlEvent::Characters("Hello".to_string())), reader.next());
-                    assert_eq!(Ok(XmlEvent::EndElement{ name: OwnedName::local("a".to_string()) }), reader.next());
+                    assert_eq!(Ok(XmlEvent::EndElement { name: OwnedName::local("a".to_string()) }), reader.next());
                     assert_eq!(Ok(XmlEvent::EndDocument), reader.next());
                     break 'outer;
                 }
@@ -972,7 +972,7 @@ fn skip() {
                 assert_ne!(name.local_name, "c");
                 // Should never see the "d" element, since it should be skipped!
                 assert_ne!(name.local_name, "d");
-            }
+            },
             XmlEvent::EndElement { name, .. } => {
                 // Should never see the "c" element, since it should be skipped!
                 assert_ne!(name.local_name, "c");
@@ -980,7 +980,7 @@ fn skip() {
                 assert_ne!(name.local_name, "d");
                 // Should never see the "x" end element, should also be skipped!
                 assert_ne!(name.local_name, "x");
-            }
+            },
             XmlEvent::EndDocument => unreachable!("Should not be reached in this test!"),
             _ => {},
         }

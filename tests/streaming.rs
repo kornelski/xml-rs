@@ -2,8 +2,8 @@
 
 use std::io::{Cursor, Write};
 
-use xml::EventReader;
 use xml::reader::{ParserConfig, XmlEvent};
+use xml::EventReader;
 
 macro_rules! assert_match {
     ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )? $(,)?) => {

@@ -586,7 +586,9 @@ impl PullParser {
                 self.into_state_continue(State::InsideReference)
             },
 
-            Token::OpeningTagStart | Token::ProcessingInstructionStart => Some(self.error(SyntaxError::UnexpectedOpeningTag)),
+            Token::OpeningTagStart | Token::ProcessingInstructionStart => {
+                Some(self.error(SyntaxError::UnexpectedOpeningTag))
+            },
 
             Token::Character(c) if !self.is_valid_xml_char_not_restricted(c) => {
                 Some(self.error(SyntaxError::InvalidCharacterEntity(c as u32)))

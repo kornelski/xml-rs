@@ -61,9 +61,11 @@ impl PullParser {
             }),
 
             OpeningTagSubstate::AfterAttributeName => match t {
-                Token::EqualsSign => self.into_state_continue(State::InsideOpeningTag(OpeningTagSubstate::InsideAttributeValue)),
+                Token::EqualsSign => {
+                    self.into_state_continue(State::InsideOpeningTag(OpeningTagSubstate::InsideAttributeValue))
+                },
                 Token::Character(c) if is_whitespace_char(c) => None,
-                _ => Some(self.error(SyntaxError::UnexpectedTokenInOpeningTag(t)))
+                _ => Some(self.error(SyntaxError::UnexpectedTokenInOpeningTag(t))),
             },
 
             OpeningTagSubstate::InsideAttributeValue => self.read_attribute_value(t, |this, value| {

@@ -3,8 +3,8 @@
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
-use xml::EmitterConfig;
 use xml::reader::{ParserConfig, Result};
+use xml::EmitterConfig;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arg = std::env::args_os().nth(1);
@@ -61,7 +61,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn alternating_caps(text: &str) -> String {
-    text.chars().enumerate()
-        .map(|(i, ch)| if i&1==0 { ch.to_ascii_uppercase() } else { ch.to_ascii_lowercase() })
+    text.chars()
+        .enumerate()
+        .map(|(i, ch)| if i & 1 == 0 { ch.to_ascii_uppercase() } else { ch.to_ascii_lowercase() })
         .collect()
 }
