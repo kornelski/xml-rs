@@ -6,20 +6,16 @@ use xml::EventReader;
 use xml::reader::{ParserConfig, XmlEvent};
 
 macro_rules! assert_match {
-    ($actual:expr, $expected:pat) => {
-        match $actual {
-            $expected => {},
-            _ => panic!("assertion failed: `(left matches right)` \
-                        (left: `{:?}`, right: `{}`", $actual, stringify!($expected))
-        }
+    ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )? $(,)?) => {
+        assert_match!($actual, $( $expected )|+ $( if $guard )?, "assert_match failed");
     };
-    ($actual:expr, $expected:pat if $guard:expr) => {
+    ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )?, $($arg:tt)+) => {
+        #[allow(unused)]
         match $actual {
-            $expected if $guard => {},
-            _ => panic!("assertion failed: `(left matches right)` \
-                        (left: `{:?}`, right: `{} if {}`",
-                        $actual, stringify!($expected), stringify!($guard))
-        }
+            $( $expected )|+ => {},
+            ref actual => panic!("{msg}\nexpect: `{expected}`\nactual: `{actual:?}`",
+                msg = $($arg)+, expected = stringify!($( $expected )|+ $( if $guard: expr )?), actual = actual),
+        };
     };
 }
 
@@ -114,5 +110,5 @@ fn stylesheet_pi_escaping() {
     assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
     assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { .. })));
     let pi = it.next();
-    assert!(matches!(pi, Some(Ok(XmlEvent::ProcessingInstruction { ref name, ref data })) if name == "xml-stylesheet" && data.as_deref() == Some(r#"type="text/css" href="../resources/test.css" "#)), "{pi:#?}");
+    assert_match!(pi, Some(Ok(XmlEvent::ProcessingInstruction { ref name, ref data })) if name == "xml-stylesheet" && data.as_deref() == Some(r#"type="text/css" href="../resources/test.css" "#), "{pi:#?}");
 }

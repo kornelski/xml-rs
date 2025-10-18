@@ -14,6 +14,20 @@ macro_rules! unwrap_all {
     }}
 }
 
+macro_rules! assert_match {
+    ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )? $(,)?) => {
+        assert_match!($actual, $( $expected )|+ $( if $guard )?, "assert_match failed");
+    };
+    ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )?, $($arg:tt)+) => {
+        #[allow(unused)]
+        match $actual {
+            $( $expected )|+ => {},
+            ref actual => panic!("{msg}\nexpect: `{expected}`\nactual: `{actual:?}`",
+                msg = $($arg)+, expected = stringify!($( $expected )|+ $( if $guard: expr )?), actual = actual),
+        };
+    };
+}
+
 #[test]
 fn reading_writing_equal_with_namespaces() {
     let mut f = File::open("tests/documents/sample_2.xml").unwrap();
@@ -294,13 +308,13 @@ fn accidental_cdata_suffix_in_characters_is_escaped() {
     {
         use xml::reader::{EventReader, XmlEvent};
         let mut r = EventReader::new(&b[..]);
-        assert!(matches!(r.next().unwrap(), XmlEvent::StartDocument { .. }));
-        assert!(matches!(r.next().unwrap(), XmlEvent::StartElement { .. }));
+        assert_match!(r.next().unwrap(), XmlEvent::StartDocument { .. });
+        assert_match!(r.next().unwrap(), XmlEvent::StartElement { .. });
         assert_eq!(r.next().unwrap(), XmlEvent::Characters("[[a]]>b".into()));
         assert_eq!(r.next().unwrap(), XmlEvent::CData("c]]".into()));
         assert_eq!(r.next().unwrap(), XmlEvent::CData(">data".into()));
-        assert!(matches!(r.next().unwrap(), XmlEvent::EndElement { .. }));
-        assert!(matches!(r.next().unwrap(), XmlEvent::EndDocument));
+        assert_match!(r.next().unwrap(), XmlEvent::EndElement { .. });
+        assert_match!(r.next().unwrap(), XmlEvent::EndDocument);
     }
 }
 
@@ -324,13 +338,13 @@ fn raw_characters() {
     {
         use xml::reader::{EventReader, XmlEvent};
         let mut r = EventReader::new(&b[..]);
-        assert!(matches!(r.next().unwrap(), XmlEvent::StartDocument { .. }));
-        assert!(matches!(r.next().unwrap(), XmlEvent::StartElement { .. }));
+        assert_match!(r.next().unwrap(), XmlEvent::StartDocument { .. });
+        assert_match!(r.next().unwrap(), XmlEvent::StartElement { .. });
         assert_eq!(r.next().unwrap(), XmlEvent::Characters("[[a]]>b".into()));
-        assert!(matches!(r.next().unwrap(), XmlEvent::StartElement { .. }));
+        assert_match!(r.next().unwrap(), XmlEvent::StartElement { .. });
         assert_eq!(r.next().unwrap(), XmlEvent::Characters("b[c".into()));
-        assert!(matches!(r.next().unwrap(), XmlEvent::EndElement { .. }));
-        assert!(matches!(r.next().unwrap(), XmlEvent::EndElement { .. }));
-        assert!(matches!(r.next().unwrap(), XmlEvent::EndDocument));
+        assert_match!(r.next().unwrap(), XmlEvent::EndElement { .. });
+        assert_match!(r.next().unwrap(), XmlEvent::EndElement { .. });
+        assert_match!(r.next().unwrap(), XmlEvent::EndDocument);
     }
 }
