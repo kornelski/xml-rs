@@ -162,6 +162,20 @@ impl<R: Read> Events<R> {
     pub fn source_mut(&mut self) -> &mut R { &mut self.reader.source }
 }
 
+impl<R: Read> std::ops::Deref for Events<R> {
+    type Target = EventReader<R>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.reader
+    }
+}
+
+impl<R: Read> std::ops::DerefMut for Events<R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.reader
+    }
+}
+
 impl<R: Read> FusedIterator for Events<R> {
 }
 
