@@ -116,6 +116,18 @@ impl<R: Read> EventReader<R> {
     pub fn doctype(&self) -> Option<&str> {
         self.parser.doctype()
     }
+
+    /// Add new entity definitions **before any XML elements have been parsed**.
+    ///
+    /// ## Errors
+    ///
+    /// It's valid to call this after DOCTYPE, but not later. It won't be possible to add entities to a document without either XML decl or DOCTYPE.
+    ///
+    /// It will fail if the document is declared as _standalone_.
+    #[inline]
+    pub fn add_entities<S: Into<String>, T: Into<String>>(&mut self, entities: impl IntoIterator<Item=(S, T)>) -> std::result::Result<(), crate::reader::error::ImmutableEntitiesError> {
+        self.parser.add_entities(entities)
+    }
 }
 
 impl<B: Read> Position for EventReader<B> {

@@ -197,6 +197,26 @@ fn sample_5_short() {
 }
 
 #[test]
+fn sample_5_short_2() {
+    test_files(
+        "documents/sample_5.xml",
+        "documents/sample_5_short.txt",
+        ParserConfig::new()
+            .ignore_comments(true)
+            .whitespace_to_characters(true)
+            .cdata_to_characters(true)
+            .trim_whitespace(true)
+            .coalesce_characters(true)
+            .add_entities([
+                ("nbsp", " "),
+                ("copy", "©"),
+                ("NotEqualTilde", "≂̸"),
+            ]),
+        false,
+    );
+}
+
+#[test]
 fn sample_6_full() {
     test_files(
         "documents/sample_6.xml",

@@ -12,9 +12,9 @@ macro_rules! assert_match {
     ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )?, $($arg:tt)+) => {
         #[allow(unused)]
         match $actual {
-            $( $expected )|+ => {},
+            $( $expected )|+ $( if $guard )? => {},
             ref actual => panic!("{msg}\nexpect: `{expected}`\nactual: `{actual:?}`",
-                msg = $($arg)+, expected = stringify!($( $expected )|+ $( if $guard: expr )?), actual = actual),
+                msg = format_args!($($arg)+), expected = stringify!($( $expected )|+ $( if $guard: expr )?), actual = actual),
         };
     };
 }
@@ -99,8 +99,10 @@ fn stylesheet_pi_escaping() {
         <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN"
         "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
         <?xml-stylesheet type="text/css" href="../resources/test.css" ?>
+        <root>
+        &custom;
+        </root>
         "#;
-
 
     let buf = Cursor::new(source);
     let reader = EventReader::new(buf);
@@ -109,6 +111,10 @@ fn stylesheet_pi_escaping() {
 
     assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
     assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { .. })));
+    it.add_entities([("custom", "okay")]).unwrap();
     let pi = it.next();
     assert_match!(pi, Some(Ok(XmlEvent::ProcessingInstruction { ref name, ref data })) if name == "xml-stylesheet" && data.as_deref() == Some(r#"type="text/css" href="../resources/test.css" "#), "{pi:#?}");
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartElement { .. })));
+    assert!(it.add_entities([("too", "late")]).is_err());
+    assert_match!(it.next(), Some(Ok(XmlEvent::Characters(c))) if c.trim() == "okay");
 }

@@ -5,7 +5,7 @@ use crate::common::{Position, TextPosition, XmlVersion};
 use crate::name::OwnedName;
 use crate::namespace::NamespaceStack;
 use crate::reader::config::ParserConfig;
-use crate::reader::error::SyntaxError;
+use crate::reader::error::{ImmutableEntitiesError, SyntaxError};
 use crate::reader::error::Error;
 use crate::reader::events::XmlEvent;
 use crate::reader::indexset::AttributesSet;
@@ -55,6 +55,8 @@ static DEFAULT_VERSION: XmlVersion = XmlVersion::Version10;
 static DEFAULT_STANDALONE: Option<bool> = None;
 
 type ElementStack = Vec<OwnedName>;
+
+/// Newtype for `XmlEvent` only. If you import this, use `std::result::Result` for other results.
 pub type Result = super::Result<XmlEvent>;
 
 /// Pull-based XML parser.
@@ -173,6 +175,18 @@ impl PullParser {
         } else {
             None
         }
+    }
+
+    #[inline]
+    pub fn add_entities<S: Into<String>, T: Into<String>>(&mut self, entities: impl IntoIterator<Item=(S, T)>) -> std::result::Result<(), ImmutableEntitiesError> {
+        if self.data.standalone == Some(true) {
+            return Err(ImmutableEntitiesError::StandaloneDocument);
+        }
+        if self.encountered == Encountered::Element {
+            return Err(ImmutableEntitiesError::ElementEncountered);
+        }
+        self.config.extra_entities.extend(entities.into_iter().map(|(k, v)| (k.into(), v.into())));
+        Ok(())
     }
 }
 
