@@ -38,7 +38,7 @@ fn run_suite_with_config(suite_rel_path: &str, parser_config: ParserConfig) {
 
     let suite_path = Path::new("tests").join(suite_rel_path);
     let known_failures_file_path = Path::new("tests").join(suite_path.with_extension("fail.txt").file_name().unwrap());
-    let mut new_known_failures_file = if std::env::var("PRINT_SPEC").map_or(false, |val| val == "1") { Some(String::new()) } else { None };
+    let mut new_known_failures_file = if std::env::var("PRINT_SPEC").is_ok_and(|val| val == "1") { Some(String::new()) } else { None };
 
     let known_broken_test_ids: HashSet<_> = std::fs::read_to_string(&known_failures_file_path).unwrap_or_default().lines()
         .map(|l| l.trim().split(' ').next().unwrap().to_string()).collect();
@@ -68,8 +68,7 @@ fn run_suite_with_config(suite_rel_path: &str, parser_config: ParserConfig) {
                 }
 
                 let res = match test_type {
-                    "valid" => expect_well_formed(&path, &desc, parser_config.clone()),
-                    "invalid" => expect_well_formed(&path, &desc, parser_config.clone()), // invalid is still well-formed
+                    "valid" | "invalid" => expect_well_formed(&path, &desc, parser_config.clone()), // invalid is still well-formed
                     "not-wf" | "error" => expect_ill_formed(&path, &desc),
                     other => unimplemented!("{other}?? type"),
                 };

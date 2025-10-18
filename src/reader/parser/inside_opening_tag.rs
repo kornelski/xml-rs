@@ -11,7 +11,7 @@ impl PullParser {
     pub fn inside_opening_tag(&mut self, t: Token, s: OpeningTagSubstate) -> Option<Result> {
         let max_attrs = self.config.max_attributes;
         match s {
-            OpeningTagSubstate::InsideName => self.read_qualified_name(t, QualifiedNameTarget::OpeningTagNameTarget, |this, token, name| {
+            OpeningTagSubstate::InsideName => self.read_qualified_name(t, QualifiedNameTarget::OpeningTag, |this, token, name| {
                 match name.prefix_ref() {
                     Some(prefix) if prefix == namespace::NS_XML_PREFIX ||
                                     prefix == namespace::NS_XMLNS_PREFIX =>
@@ -45,7 +45,7 @@ impl PullParser {
                 _ => Some(self.error(SyntaxError::UnexpectedTokenInOpeningTag(t))),
             },
 
-            OpeningTagSubstate::InsideAttributeName => self.read_qualified_name(t, QualifiedNameTarget::AttributeNameTarget, |this, token, name| {
+            OpeningTagSubstate::InsideAttributeName => self.read_qualified_name(t, QualifiedNameTarget::Attribute, |this, token, name| {
                 // check that no attribute with such name is already present
                 // if there is one, XML is not well-formed
                 if this.data.attributes.contains(&name) {

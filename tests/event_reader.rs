@@ -894,7 +894,7 @@ fn trim_until_bar(s: String) -> String {
 fn test_files(input_path: &str, output_path: &str, config: ParserConfig, test_position: bool) {
     let input = std::fs::read(Path::new("tests").join(input_path)).expect("in path");
     let output = std::fs::read(Path::new("tests").join(output_path)).expect("out path");
-    let should_print = std::env::var("PRINT_SPEC").map_or(false, |val| val == "1");
+    let should_print = std::env::var("PRINT_SPEC").is_ok_and(|val| val == "1");
     let mut out = if should_print { Some(vec![]) } else { None };
 
     test_inner(&input, &output, config, test_position, out.as_mut());
@@ -906,7 +906,7 @@ fn test_files(input_path: &str, output_path: &str, config: ParserConfig, test_po
 
 #[track_caller]
 fn test(input: &[u8], output: &[u8], config: impl Into<ParserConfig>, test_position: bool) {
-    let should_print = std::env::var("PRINT_SPEC").map_or(false, |val| val == "1");
+    let should_print = std::env::var("PRINT_SPEC").is_ok_and(|val| val == "1");
     let mut out = if should_print { Some(vec![]) } else { None };
 
     test_inner(input, output, config.into(), test_position, out.as_mut());

@@ -106,6 +106,7 @@ impl CharReader {
         Self { encoding: Encoding::Unknown }
     }
 
+    #[inline]
     pub fn next_char_from<R: Read>(&mut self, source: &mut R) -> Result<Option<char>, CharReadError> {
         let mut bytes = source.bytes();
         const MAX_CODEPOINT_LEN: usize = 4;

@@ -132,12 +132,12 @@ impl Emitter {
 
     #[inline]
     fn wrote_text(&self) -> bool {
-        self.indent_stack.last().map_or(false, |&e| e == IndentFlags::WroteText)
+        self.indent_stack.last().is_some_and(|&e| e == IndentFlags::WroteText)
     }
 
     #[inline]
     fn wrote_markup(&self) -> bool {
-        self.indent_stack.last().map_or(false, |&e| e == IndentFlags::WroteMarkup)
+        self.indent_stack.last().is_some_and(|&e| e == IndentFlags::WroteMarkup)
     }
 
     #[inline]
@@ -333,9 +333,11 @@ impl Emitter {
                 //// there is already a namespace binding with this prefix in scope
                 //prefix if self.nst.get(prefix) == Some(uri) => Ok(()),
                 // emit xmlns only if it is overridden
-                NS_NO_PREFIX => if uri != NS_EMPTY_URI {
+                NS_NO_PREFIX => if uri == NS_EMPTY_URI {
+                    Ok(())
+                } else {
                     write!(target, " xmlns=\"{uri}\"")
-                } else { Ok(()) },
+                },
                 // everything else
                 prefix => write!(target, " xmlns:{prefix}=\"{uri}\""),
             }?;

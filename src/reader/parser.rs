@@ -284,9 +284,9 @@ pub(crate) enum DeclarationSubstate {
 
 #[derive(Copy, Clone, PartialEq)]
 enum QualifiedNameTarget {
-    AttributeNameTarget,
-    OpeningTagNameTarget,
-    ClosingTagNameTarget,
+    Attribute,
+    OpeningTag,
+    ClosingTag,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq)]
@@ -534,12 +534,12 @@ impl PullParser {
                 None
             },
 
-            Token::EqualsSign if target == QualifiedNameTarget::AttributeNameTarget => invoke_callback(self, t),
+            Token::EqualsSign if target == QualifiedNameTarget::Attribute => invoke_callback(self, t),
 
-            Token::EmptyTagEnd if target == QualifiedNameTarget::OpeningTagNameTarget => invoke_callback(self, t),
+            Token::EmptyTagEnd if target == QualifiedNameTarget::OpeningTag => invoke_callback(self, t),
 
-            Token::TagEnd if target == QualifiedNameTarget::OpeningTagNameTarget ||
-                      target == QualifiedNameTarget::ClosingTagNameTarget => invoke_callback(self, t),
+            Token::TagEnd if target == QualifiedNameTarget::OpeningTag ||
+                      target == QualifiedNameTarget::ClosingTag => invoke_callback(self, t),
 
             Token::Character(c) if is_whitespace_char(c) => invoke_callback(self, t),
 
