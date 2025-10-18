@@ -94,6 +94,22 @@ fn reading_streamed_content2() {
 }
 
 #[test]
+fn late_ns_binding() {
+    let reader = EventReader::new(Cursor::new(r#"<html xmlns="http://www.w3.org/1999/xhtml" xmlns:â="urn:x-test:U+00E2">
+        <ê:test id="test" xmlns:ê="urn:x-test:U+00EA" â:âAttr="âValue"/>
+        </html>
+    "#));
+
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    let XmlEvent::StartElement { name, attributes, namespace } = it.next().unwrap().unwrap() else { panic!() };
+    assert_eq!("urn:x-test:U+00E2", namespace.0["â"]);
+    assert!(attributes.is_empty());
+    assert_eq!(("http://www.w3.org/1999/xhtml", "html"), name);
+}
+
+#[test]
 fn stylesheet_pi_escaping() {
     let source = r#"<?xml version="1.0" standalone="no"?>
         <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN"
