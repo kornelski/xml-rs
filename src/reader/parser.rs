@@ -80,7 +80,7 @@ pub(crate) struct PullParser {
 
     encountered: Encountered,
     inside_whitespace: bool,
-    read_prefix_separator: bool,
+    seen_prefix_separator: bool,
     pop_namespace: bool,
 }
 
@@ -140,7 +140,7 @@ impl PullParser {
 
             encountered: Encountered::None,
             inside_whitespace: true,
-            read_prefix_separator: false,
+            seen_prefix_separator: false,
             pop_namespace: false,
         }
     }
@@ -506,7 +506,7 @@ impl PullParser {
 
         let try_consume_name = move |this: &mut Self, t| {
             let name = this.take_buf();
-            this.read_prefix_separator = false;
+            this.seen_prefix_separator = false;
             match name.parse() {
                 Ok(name) => on_name(this, t, name),
                 Err(()) => Some(this.error(SyntaxError::InvalidQualifiedName(name.into()))),
@@ -515,9 +515,9 @@ impl PullParser {
 
         match t {
             // There can be only one colon, and not as the first character
-            Token::Character(':') if self.buf_has_data() && !self.read_prefix_separator => {
+            Token::Character(':') if self.buf_has_data() && !self.seen_prefix_separator => {
                 self.buf.push(':');
-                self.read_prefix_separator = true;
+                self.seen_prefix_separator = true;
                 None
             },
 
