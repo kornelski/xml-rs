@@ -118,3 +118,27 @@ fn stylesheet_pi_escaping() {
     assert!(it.add_entities([("too", "late")]).is_err());
     assert_match!(it.next(), Some(Ok(XmlEvent::Characters(c))) if c.trim() == "okay");
 }
+
+
+#[test]
+fn unicode_attribute() {
+    let source = r#"<xml xmlns:â="_"><b:t â:a="_" xmlns:b="_"/></xml>"#;
+
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartElement { name, attributes: _ , namespace: _ })) if name.local_name == "xml");
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartElement { name, attributes , namespace: _ }))
+        if name.prefix == Some(String::from("b"))
+        && name.local_name == "t"
+        && attributes[0].name.prefix == Some(String::from("â"))
+        && attributes[0].name.local_name == "a" );
+    assert_match!(it.next(), Some(Ok(XmlEvent::EndElement { ref name }))
+        if name.prefix == Some(String::from("b"))
+        && name.local_name == "t");
+    assert_match!(it.next(), Some(Ok(XmlEvent::EndElement { ref name }))
+        if name.local_name == "xml");
+}
