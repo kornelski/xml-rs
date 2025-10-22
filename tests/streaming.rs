@@ -115,3 +115,27 @@ fn stylesheet_pi_escaping() {
     let pi = it.next();
     assert!(matches!(pi, Some(Ok(XmlEvent::ProcessingInstruction { ref name, ref data })) if name == "xml-stylesheet" && data.as_deref() == Some(r#"type="text/css" href="../resources/test.css" "#)), "{pi:#?}");
 }
+
+
+#[test]
+fn unicode_attribute() {
+    let source = r#"<xml xmlns:â="_"><b:t â:a="_" xmlns:b="_"/></xml>"#;
+
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartElement { name, attributes: _ , namespace: _ })) if name.local_name == "xml");
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartElement { name, attributes , namespace: _ }))
+        if name.prefix == Some(String::from("b"))
+        && name.local_name == "t"
+        && attributes[0].name.prefix == Some(String::from("â"))
+        && attributes[0].name.local_name == "a" );
+    assert_match!(it.next(), Some(Ok(XmlEvent::EndElement { ref name }))
+        if name.prefix == Some(String::from("b"))
+        && name.local_name == "t");
+    assert_match!(it.next(), Some(Ok(XmlEvent::EndElement { ref name }))
+        if name.local_name == "xml");
+}
