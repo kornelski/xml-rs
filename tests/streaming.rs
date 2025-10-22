@@ -139,3 +139,38 @@ fn unicode_attribute() {
     assert_match!(it.next(), Some(Ok(XmlEvent::EndElement { ref name }))
         if name.local_name == "xml");
 }
+
+#[test]
+fn no_double_colon_in_tag_name() {
+    let source = r#"<root::element/>"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert!(format!("{:?}", it.next()).contains("pos: 1:7, kind: Syntax(\"Unexpected token inside qualified name: :\")"));
+}
+
+#[test]
+fn no_double_prefix() {
+    let source = r#"<root><a:b:c/></root>"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartElement { ref name, .. })) if name.local_name == "root");
+    assert!(format!("{:?}", it.next()).contains("pos: 1:11, kind: Syntax(\"Unexpected token inside qualified name: :\")"));
+}
+
+
+#[test]
+fn no_double_colon_in_attr_name() {
+    let source = r#"<root a::c="_"/>"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert!(format!("{:?}", it.next()).contains("pos: 1:9, kind: Syntax(\"Unexpected token inside qualified name: :\")"));
+}
