@@ -488,14 +488,10 @@ impl PullParser {
     /// * `on_name` --- a callback which is executed when whitespace is encountered.
     fn read_qualified_name<F>(&mut self, t: Token, target: QualifiedNameTarget, on_name: F) -> Option<Result>
       where F: Fn(&mut Self, Token, OwnedName) -> Option<Result> {
-        // We can get here for the first time only when self.data.name contains zero or one character,
-        // but first character cannot be a colon anyway
-        if self.buf.len() <= 1 {
-            self.read_prefix_separator = false;
-        }
 
         let invoke_callback = move |this: &mut Self, t| {
             let name = this.take_buf();
+            this.read_prefix_separator = false;
             match name.parse() {
                 Ok(name) => on_name(this, t, name),
                 Err(()) => Some(this.error(SyntaxError::InvalidQualifiedName(name.into()))),
