@@ -198,7 +198,7 @@ impl Position for PullParser {
     }
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) enum State {
     OutsideTag,
     InsideOpeningTag(OpeningTagSubstate),
@@ -212,7 +212,7 @@ pub(crate) enum State {
     DocumentStart,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) enum DoctypeSubstate {
     Outside,
     String,
@@ -233,7 +233,7 @@ pub(crate) enum DoctypeSubstate {
     Comment,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) enum OpeningTagSubstate {
     InsideName,
 
@@ -246,19 +246,19 @@ pub(crate) enum OpeningTagSubstate {
     AfterAttributeValue,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) enum ClosingTagSubstate {
     CTInsideName,
     CTAfterName,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) enum ProcessingInstructionSubstate {
     PIInsideName,
     PIInsideData,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) enum DeclarationSubstate {
     BeforeVersion,
     InsideVersion,
@@ -282,7 +282,7 @@ pub(crate) enum DeclarationSubstate {
     AfterStandaloneDeclValue,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Copy, Clone, PartialEq, Debug)]
 enum QualifiedNameTarget {
     Attribute,
     OpeningTag,
