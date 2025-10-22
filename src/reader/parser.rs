@@ -504,7 +504,7 @@ impl PullParser {
     fn read_qualified_name<F>(&mut self, t: Token, target: QualifiedNameTarget, on_name: F) -> Option<Result>
       where F: Fn(&mut Self, Token, OwnedName) -> Option<Result> {
 
-        let invoke_callback = move |this: &mut Self, t| {
+        let try_consume_name = move |this: &mut Self, t| {
             let name = this.take_buf();
             this.read_prefix_separator = false;
             match name.parse() {
@@ -530,14 +530,14 @@ impl PullParser {
                 None
             },
 
-            Token::EqualsSign if target == QualifiedNameTarget::Attribute => invoke_callback(self, t),
+            Token::EqualsSign if target == QualifiedNameTarget::Attribute => try_consume_name(self, t),
 
-            Token::EmptyTagEnd if target == QualifiedNameTarget::OpeningTag => invoke_callback(self, t),
+            Token::EmptyTagEnd if target == QualifiedNameTarget::OpeningTag => try_consume_name(self, t),
 
             Token::TagEnd if target == QualifiedNameTarget::OpeningTag ||
-                      target == QualifiedNameTarget::ClosingTag => invoke_callback(self, t),
+                      target == QualifiedNameTarget::ClosingTag => try_consume_name(self, t),
 
-            Token::Character(c) if is_whitespace_char(c) => invoke_callback(self, t),
+            Token::Character(c) if is_whitespace_char(c) => try_consume_name(self, t),
 
             _ => Some(self.error(SyntaxError::UnexpectedQualifiedName(t))),
         }
