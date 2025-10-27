@@ -1,6 +1,6 @@
 [package]
 name = "xml-rs"
-version = "0.8.27"
+version = "0.8.28"
 authors = ["Vladimir Matveev <vmatveev@citrine.cc>"]
 license = "MIT"
 description = "An XML library in pure Rust"
@@ -11,7 +11,7 @@ readme = "README.md"
 keywords = ["xml", "parser", "sax", "parsing", "writer"]
 categories = ["parser-implementations"]
 edition = "2021"
-rust-version = "1.61"
+rust-version = "1.70"
 include = ["src/**", "LICENSE", "README.md"]
 
 [lib]
