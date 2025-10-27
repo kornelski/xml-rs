@@ -1,3 +1,9 @@
+## Version 1.1
+
+* `Events` iterator can access the underlying `EventReader`.
+* `add_entities` can be called after `DOCTYPE` to conditionally support XHTML, etc.
+* Fixed parsing of namespaces prefixes starting with a non-ASCII char.
+
 ## Version 1.0.0
 
 * Added `Doctype` event
