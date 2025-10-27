@@ -188,6 +188,7 @@ impl Position for Error {
 
 impl Error {
     #[doc(hidden)]
+    #[must_use] 
     pub fn msg(&self) -> String {
         self.to_string()
     }
@@ -268,7 +269,7 @@ impl From<ImmutableEntitiesError> for Error {
     fn from(e: ImmutableEntitiesError) -> Self {
         Self {
             pos: TextPosition::new(),
-            kind: ErrorKind::Io(io::Error::other(e)),
+            kind: ErrorKind::Io(io::Error::new(io::ErrorKind::Other, e)),
         }
     }
 }
