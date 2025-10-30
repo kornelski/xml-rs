@@ -91,12 +91,25 @@ pub enum XmlVersion {
     Version11,
 }
 
-impl fmt::Display for XmlVersion {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match *self {
+impl XmlVersion {
+    /// Convenience helper which returns a string representation of the given version.
+    ///
+    /// ```
+    /// # use xml::common::XmlVersion;
+    /// assert_eq!(XmlVersion::Version10.as_str(), "1.0");
+    /// assert_eq!(XmlVersion::Version11.as_str(), "1.1");
+    /// ```
+    pub fn as_str(self) -> &'static str {
+        match self {
             Self::Version10 => "1.0",
             Self::Version11 => "1.1",
-        }.fmt(f)
+        }
+    }
+}
+
+impl fmt::Display for XmlVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.as_str().fmt(f)
     }
 }
 
