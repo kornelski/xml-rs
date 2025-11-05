@@ -168,7 +168,7 @@ impl PullParser {
         if prev_enc == Encountered::None {
             self.push_pos();
             Some(Ok(XmlEvent::StartDocument {
-                version: DEFAULT_VERSION,
+                version: DEFAULT_VERSION.clone(),
                 encoding: self.lexer.encoding().to_string(),
                 standalone: DEFAULT_STANDALONE,
             }))

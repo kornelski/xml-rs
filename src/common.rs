@@ -82,13 +82,17 @@ impl Position for TextPosition {
 }
 
 /// XML version enumeration.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum XmlVersion {
     /// XML version 1.0.
     Version10,
 
     /// XML version 1.1.
     Version11,
+
+    /// XML version 1.x, if not 1.0 or 1.1
+    /// See https://www.w3.org/TR/REC-xml/#sec-prolog-dtd
+    Version1x(Box<str>)
 }
 
 impl XmlVersion {
@@ -99,10 +103,11 @@ impl XmlVersion {
     /// assert_eq!(XmlVersion::Version10.as_str(), "1.0");
     /// assert_eq!(XmlVersion::Version11.as_str(), "1.1");
     /// ```
-    pub fn as_str(self) -> &'static str {
+    pub fn as_str(&self) -> &str {
         match self {
             Self::Version10 => "1.0",
             Self::Version11 => "1.1",
+            Self::Version1x(ref s) => s,
         }
     }
 }

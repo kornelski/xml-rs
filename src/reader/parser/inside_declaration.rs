@@ -15,7 +15,7 @@ impl PullParser {
         debug_assert!(self.encountered == Encountered::None);
         self.encountered = Encountered::Declaration;
 
-        let version = self.data.version;
+        let version = self.data.version.clone();
         let encoding = self.data.take_encoding();
         let standalone = self.data.standalone;
 
@@ -39,7 +39,7 @@ impl PullParser {
 
         let current_encoding = self.lexer.encoding();
         self.into_state_emit(State::OutsideTag, Ok(XmlEvent::StartDocument {
-            version: version.unwrap_or(DEFAULT_VERSION),
+            version: version.unwrap_or(DEFAULT_VERSION.clone()),
             encoding: encoding.unwrap_or_else(move || current_encoding.to_string()),
             standalone
         }))
@@ -82,7 +82,17 @@ impl PullParser {
                 this.data.version = match &*value {
                     "1.0" => Some(XmlVersion::Version10),
                     "1.1" => Some(XmlVersion::Version11),
-                    _     => None
+                    // https://www.w3.org/TR/REC-xml/#sec-prolog-dtd
+                    // VersionNum	   ::=   	'1.' [0-9]+
+                    // "[...] This means that an XML 1.0 processor will accept 1.x
+                    //  documents provided they do not use any non-1.0 features."
+                    v if v.starts_with("1.")
+                        && v.len() >= 3
+                        && v.chars().skip(2).all(|c| c.is_ascii_digit()) =>
+                    {
+                        Some(XmlVersion::Version1x(v.into()))
+                    }
+                    _ => None,
                 };
                 if this.data.version.is_some() {
                     this.into_state_continue(State::InsideDeclaration(DeclarationSubstate::AfterVersionValue))

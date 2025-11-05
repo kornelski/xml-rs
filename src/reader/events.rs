@@ -202,7 +202,7 @@ impl XmlEvent {
         match self {
             Self::StartDocument { version, encoding, standalone } =>
                 Some(crate::writer::events::XmlEvent::StartDocument {
-                    version: *version,
+                    version: version.clone(),
                     encoding: Some(encoding),
                     standalone: *standalone
                 }),
