@@ -5,18 +5,8 @@ use std::io::{Cursor, Write};
 use xml::reader::{ParserConfig, XmlEvent};
 use xml::EventReader;
 
-macro_rules! assert_match {
-    ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )? $(,)?) => {
-        assert_match!($actual, $( $expected )|+ $( if $guard )?, "assert_match failed");
-    };
-    ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )?, $($arg:tt)+) => {
-        #[allow(unused)]
-        match $actual {
-            $( $expected )|+ $( if $guard )? => {},
-            ref actual => panic!("{msg}\nexpect: `{expected}`\nactual: `{actual:?}`",
-                msg = format_args!($($arg)+), expected = stringify!($( $expected )|+ $( if $guard: expr )?), actual = actual),
-        };
-    };
+mod util {
+    mod assert_match;
 }
 
 fn write_and_reset_position<W>(c: &mut Cursor<W>, data: &[u8]) where Cursor<W>: Write {

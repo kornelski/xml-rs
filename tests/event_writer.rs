@@ -14,18 +14,8 @@ macro_rules! unwrap_all {
     }}
 }
 
-macro_rules! assert_match {
-    ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )? $(,)?) => {
-        assert_match!($actual, $( $expected )|+ $( if $guard )?, "assert_match failed");
-    };
-    ($actual:expr, $( $expected:pat_param )|+ $( if $guard: expr )?, $($arg:tt)+) => {
-        #[allow(unused)]
-        match $actual {
-            $( $expected )|+ => {},
-            ref actual => panic!("{msg}\nexpect: `{expected}`\nactual: `{actual:?}`",
-                msg = $($arg)+, expected = stringify!($( $expected )|+ $( if $guard: expr )?), actual = actual),
-        };
-    };
+mod util {
+    mod assert_match;
 }
 
 #[test]
