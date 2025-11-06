@@ -124,6 +124,9 @@ impl PullParser {
             data: MarkupData {
                 name: String::new(),
                 doctype: None,
+                doctype_name: String::new(),
+                doctype_public_id: None,
+                doctype_system_id: None,
                 version: None,
                 encoding: None,
                 standalone: None,
@@ -214,7 +217,17 @@ pub(crate) enum State {
 
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub(crate) enum DoctypeSubstate {
+    BeforeDoctypeName,
+    DoctypeName,
     Outside,
+    // PUBLIC ... SYSTEM... public and system literal parts.
+    ExternalIdKeyword,
+    BeforeSystemLiteral,
+    SystemLiteral,
+    BeforePubId,
+    PubId,
+    // Internal Subset related bits, parts inside [...].
+    InternalSubset,
     String,
     InsideName,
     BeforeEntityName,
@@ -229,6 +242,7 @@ pub(crate) enum DoctypeSubstate {
     /// name definition
     PEReferenceDefinitionStart,
     PEReferenceDefinition,
+    IgnorePI,
     SkipDeclaration,
     Comment,
 }
@@ -321,6 +335,9 @@ struct MarkupData {
     ref_data: String,  // used for reference content
 
     doctype: Option<String>, // keeps a copy of the original doctype
+    doctype_name: String,
+    doctype_public_id: Option<String>,
+    doctype_system_id: Option<String>,
     version: Option<XmlVersion>,  // used for XML declaration version
     encoding: Option<String>,  // used for XML declaration encoding
     standalone: Option<bool>,  // used for XML declaration standalone parameter

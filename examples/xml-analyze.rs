@@ -46,7 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     if standalone.unwrap_or(false) { "" } else { "not " }
                 );
             },
-            XmlEvent::Doctype { syntax } => {
+            XmlEvent::Doctype { syntax , ..} => {
                 println!("The Doctype is: {syntax}");
             },
             XmlEvent::EndDocument => println!("Document finished"),

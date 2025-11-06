@@ -870,7 +870,7 @@ fn retrieve_doctype() {
 
     while let Ok(e) = parser.next() {
         match e {
-            XmlEvent::Doctype { syntax } => assert_eq!(syntax, expected),
+            XmlEvent::Doctype { syntax, .. } => assert_eq!(syntax, expected),
             XmlEvent::StartElement { .. } => break,
             _ => {},
         }
@@ -1035,7 +1035,7 @@ impl fmt::Display for Event<'_> {
                 XmlEvent::CData(ref data) => write!(f, r#"CData("{}")"#, data.escape_debug()),
                 XmlEvent::Characters(ref data) => write!(f, r#"Characters("{}")"#, data.escape_debug()),
                 XmlEvent::Whitespace(ref data) => write!(f, r#"Whitespace("{}")"#, data.escape_debug()),
-                XmlEvent::Doctype { ref syntax } => write!(f, r#"Doctype("{}")"#, syntax.escape_debug()),
+                XmlEvent::Doctype { ref syntax, .. } => write!(f, r#"Doctype("{}")"#, syntax.escape_debug()),
             },
             Err(ref e) => e.fmt(f),
         }

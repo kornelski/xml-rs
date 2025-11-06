@@ -114,6 +114,12 @@ pub enum XmlEvent {
     Doctype {
         /// Everything including `<` and `>`
         syntax: String,
+        /// Doctype name, following <?DOCTYPE ...
+        name: String,
+        /// Public id of Doctype, if available. See https://www.w3.org/TR/xml/#NT-ExternalID
+        public_id: Option<String>,
+        /// System id of Doctype, if available See https://www.w3.org/TR/xml/#NT-ExternalID
+        system_id: Option<String>,
     },
 }
 
@@ -149,8 +155,8 @@ impl fmt::Debug for XmlEvent {
                 write!(f, "Characters({data})"),
             Self::Whitespace(data) =>
                 write!(f, "Whitespace({data})"),
-            Self::Doctype { syntax } =>
-                write!(f, "Doctype({syntax})"),
+            Self::Doctype { syntax, name, public_id, system_id } =>
+                write!(f, "Doctype({syntax}, {name}, {:?}, {:?})", public_id, system_id)
         }
     }
 }
@@ -223,7 +229,7 @@ impl XmlEvent {
             Self::CData(data) => Some(crate::writer::events::XmlEvent::CData(data)),
             Self::Characters(data) |
             Self::Whitespace(data) => Some(crate::writer::events::XmlEvent::Characters(data)),
-            Self::Doctype { syntax } => Some(crate::writer::events::XmlEvent::Doctype(syntax)),
+            Self::Doctype { syntax, .. } => Some(crate::writer::events::XmlEvent::Doctype(syntax)),
             Self::EndDocument => None,
         }
     }

@@ -177,3 +177,59 @@ fn no_double_colon_in_attr_name() {
     assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
     assert!(format!("{:?}", it.next()).contains("pos: 1:9, kind: Syntax(\"Unexpected token inside qualified name: :\")"));
 }
+
+#[test]
+fn doctype_public_sytem() {
+    let source = r#"<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { name, syntax, public_id, system_id}))
+      if name == "svg" &&
+      public_id == Some(String::from("-//W3C//DTD SVG 1.1//EN")) &&
+      system_id == Some(String::from("http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd")));
+}
+
+#[test]
+fn doctype_system_only() {
+    let source = r#"<!DOCTYPE svg SYSTEM "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { name, syntax, public_id, system_id}))
+      if name == "svg" &&
+      public_id == None &&
+      system_id == Some(String::from("http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd")));
+}
+
+#[test]
+fn doctype_name_only_with_space() {
+    let source = r#"<!DOCTYPE svg >"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { name, syntax, public_id, system_id}))
+      if name == "svg" &&
+      public_id.is_none() &&
+      system_id.is_none());
+}
+
+#[test]
+fn doctype_name_only_name_closing_tag() {
+    let source = r#"<!DOCTYPE svg>"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { name, syntax, public_id, system_id}))
+      if name == "svg" &&
+      public_id.is_none() &&
+      system_id.is_none());
+}
