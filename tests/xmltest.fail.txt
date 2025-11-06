@@ -1,6 +1,5 @@
 not-wf-sa-003 003.xml   Processing Instruction target name is required.
 not-wf-sa-054 054.xml   PUBLIC requires two literals.
-not-wf-sa-056 056.xml   Invalid Document Type Definition format - misplaced comment. 
 not-wf-sa-057 057.xml   This isn't SGML; comments can't exist in declarations. 
 not-wf-sa-058 058.xml   Invalid character , in ATTLIST enumeration 
 not-wf-sa-059 059.xml   String literal must be in quotes. 
@@ -22,7 +21,6 @@ not-wf-sa-081 081.xml   This tests the No External Entity References WFC,  since
 not-wf-sa-082 082.xml   This tests the No External Entity References WFC,  since the entity is referred to within an attribute. 
 not-wf-sa-083 083.xml   Undefined NOTATION n. 
 not-wf-sa-084 084.xml   Tests the Parsed Entity WFC by referring to an  unparsed entity. (This precedes the error of not declaring  that entity's notation, which may be detected any time before  the DTD parsing is completed.) 
-not-wf-sa-085 085.xml   Public IDs may not contain "[". 
 not-wf-sa-086 086.xml   Public IDs may not contain "[". 
 not-wf-sa-087 087.xml   Public IDs may not contain "[". 
 not-wf-sa-089 089.xml   Parameter entities "are" always parsed; NDATA annotations  are not permitted.
@@ -56,7 +54,6 @@ not-wf-sa-159 159.xml   Uses '&' unquoted in an entity declaration,  which is il
 not-wf-sa-160 160.xml   Violates the PEs in Internal Subset WFC  by using a PE reference within a declaration. 
 not-wf-sa-161 161.xml   Violates the PEs in Internal Subset WFC  by using a PE reference within a declaration. 
 not-wf-sa-162 162.xml   Violates the PEs in Internal Subset WFC  by using a PE reference within a declaration. 
-not-wf-sa-164 164.xml   Invalid placement of Parameter entity reference. 
 not-wf-sa-180 180.xml   The Entity Declared WFC requires entities to be declared  before they are used in an attribute list declaration. 
 not-wf-sa-181 181.xml   Internal parsed entities must match the content  production to be well formed. 
 not-wf-sa-182 182.xml   Internal parsed entities must match the content  production to be well formed. 
