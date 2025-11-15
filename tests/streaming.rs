@@ -82,6 +82,22 @@ fn reading_streamed_content2() {
 }
 
 #[test]
+fn late_ns_binding() {
+    let reader = EventReader::new(Cursor::new(r#"<html xmlns="http://www.w3.org/1999/xhtml" xmlns:â="urn:x-test:U+00E2">
+        <ê:test id="test" xmlns:ê="urn:x-test:U+00EA" â:âAttr="âValue"/>
+        </html>
+    "#));
+
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    let XmlEvent::StartElement { name, attributes, namespace } = it.next().unwrap().unwrap() else { panic!() };
+    assert_eq!("urn:x-test:U+00E2", namespace.0["â"]);
+    assert!(attributes.is_empty());
+    assert_eq!(("http://www.w3.org/1999/xhtml", "html"), name);
+}
+
+#[test]
 fn stylesheet_pi_escaping() {
     let source = r#"<?xml version="1.0" standalone="no"?>
         <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.0//EN"
@@ -164,4 +180,64 @@ fn no_double_colon_in_attr_name() {
 
     assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
     assert!(format!("{:?}", it.next()).contains("pos: 1:9, kind: Syntax(\"Unexpected token inside qualified name: :\")"));
+}
+
+#[test]
+fn doctype_public_sytem() {
+    let source = r#"<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { syntax })));
+    let d = it.doctype_ids().unwrap();
+    assert_eq!(d.name(), "svg");
+    assert_eq!(d.public_id(), Some("-//W3C//DTD SVG 1.1//EN"));
+    assert_eq!(d.system_id(), Some("http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"));
+}
+
+#[test]
+fn doctype_system_only() {
+    let source = r#"<!DOCTYPE svg SYSTEM "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { syntax })));
+    let d = it.doctype_ids().unwrap();
+    assert_eq!(d.name(), "svg");
+    assert_eq!(d.public_id(), None);
+    assert_eq!(d.system_id(), Some("http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"));
+}
+
+#[test]
+fn doctype_name_only_with_space() {
+    let source = r#"<!DOCTYPE svg >"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { syntax })));
+    let d = it.doctype_ids().unwrap();
+    assert_eq!(d.name(), "svg");
+    assert_eq!(d.public_id(), None);
+    assert_eq!(d.system_id(), None);
+}
+
+#[test]
+fn doctype_name_only_name_closing_tag() {
+    let source = r#"<!DOCTYPE svg>"#;
+    let buf = Cursor::new(source);
+    let reader = EventReader::new(buf);
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { syntax })));
+    let d = it.doctype_ids().unwrap();
+    assert_eq!(d.name(), "svg");
+    assert_eq!(d.public_id(), None);
+    assert_eq!(d.system_id(), None);
 }
