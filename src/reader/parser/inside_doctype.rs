@@ -20,7 +20,6 @@ impl PullParser {
             DoctypeSubstate::BeforeDoctypeName => match t {
                 Token::Character(c) if is_whitespace_char(c) => None,
                 Token::Character(c) if is_name_start_char(c) => {
-                    self.data.doctype_name.clear();
                     self.buf.push(c);
                     self.into_state_continue(State::InsideDoctype(DoctypeSubstate::DoctypeName))
                 }
@@ -28,14 +27,14 @@ impl PullParser {
             },
             DoctypeSubstate::DoctypeName => match t {
                 Token::TagEnd => {
-                    self.data.doctype_name = self.take_buf();
+                    self.data.doctype_name = Some(self.take_buf_boxed());
                     let event = XmlEvent::Doctype {
                         syntax: self.data.doctype.clone().unwrap_or_default(),
                     };
                     self.into_state_emit(State::OutsideTag, Ok(event))
                 }
                 Token::Character(c) if is_whitespace_char(c) => {
-                    self.data.doctype_name = self.take_buf();
+                    self.data.doctype_name = Some(self.take_buf_boxed());
                     self.into_state_continue(State::InsideDoctype(DoctypeSubstate::Outside))
                 }
                 Token::Character(c) if is_name_char(c) => {
@@ -89,7 +88,7 @@ impl PullParser {
                 }
                 Token::SingleQuote | Token::DoubleQuote => {
                     self.data.quote = None;
-                    self.data.doctype_system_id = Some(self.take_buf());
+                    self.data.doctype_system_id = Some(self.take_buf_boxed());
                     self.into_state_continue(State::InsideDoctype(DoctypeSubstate::Outside))
                 }
                 Token::Character(c) => {
@@ -118,7 +117,7 @@ impl PullParser {
                 }
                 Token::SingleQuote | Token::DoubleQuote => {
                     self.data.quote = None;
-                    self.data.doctype_public_id = Some(self.take_buf());
+                    self.data.doctype_public_id = Some(self.take_buf_boxed());
                     self.into_state_continue(State::InsideDoctype(
                         DoctypeSubstate::BeforeSystemLiteral,
                     ))
@@ -212,16 +211,17 @@ impl PullParser {
                     None
                 }
                 Token::Character(c) if is_whitespace_char(c) => {
-                    let buf = self.take_buf();
-                    match buf.as_str() {
+                    let state = match self.buf.as_str() {
                         "ENTITY" => self.into_state_continue(State::InsideDoctype(
                             DoctypeSubstate::BeforeEntityName,
                         )),
                         "NOTATION" | "ELEMENT" | "ATTLIST" => self.into_state_continue(
                             State::InsideDoctype(DoctypeSubstate::SkipDeclaration),
                         ),
-                        _ => Some(self.error(SyntaxError::UnknownMarkupDeclaration(buf.into()))),
-                    }
+                        _ => Some(self.error(SyntaxError::UnknownMarkupDeclaration(self.buf.as_str().into()))),
+                    };
+                    self.buf.clear();
+                    state
                 }
                 _ => Some(self.error(SyntaxError::UnexpectedToken(t))),
             },

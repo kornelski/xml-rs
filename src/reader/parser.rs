@@ -125,7 +125,7 @@ impl PullParser {
             data: MarkupData {
                 name: String::new(),
                 doctype: None,
-                doctype_name: String::new(),
+                doctype_name: None,
                 doctype_public_id: None,
                 doctype_system_id: None,
                 version: None,
@@ -161,8 +161,8 @@ impl PullParser {
 
     pub fn doctype_ids(&self) -> Option<DoctypeRef<'_>> {
         Some(DoctypeRef {
-            name: &self.data.doctype_name,
             syntax: self.data.doctype.as_deref()?,
+            name: self.data.doctype_name.as_deref()?,
             public_id: self.data.doctype_public_id.as_deref(),
             system_id: self.data.doctype_system_id.as_deref(),
         })
@@ -345,9 +345,9 @@ struct MarkupData {
     ref_data: String,  // used for reference content
 
     doctype: Option<String>, // keeps a copy of the original doctype
-    doctype_name: String,
-    doctype_public_id: Option<String>,
-    doctype_system_id: Option<String>,
+    doctype_name: Option<Box<str>>,
+    doctype_public_id: Option<Box<str>>,
+    doctype_system_id: Option<Box<str>>,
     version: Option<XmlVersion>,  // used for XML declaration version
     encoding: Option<String>,  // used for XML declaration encoding
     standalone: Option<bool>,  // used for XML declaration standalone parameter
@@ -501,6 +501,13 @@ impl PullParser {
     #[inline]
     fn take_buf(&mut self) -> String {
         std::mem::take(&mut self.buf)
+    }
+
+    #[inline]
+    fn take_buf_boxed(&mut self) -> Box<str> {
+        let res = self.buf.as_str().into();
+        self.buf.clear();
+        res
     }
 
     #[inline]
