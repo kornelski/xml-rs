@@ -1,5 +1,6 @@
 //! Contains an implementation of pull-based XML parser.
 
+use crate::reader::DoctypeRef;
 use crate::common::{is_xml10_char, is_xml11_char, is_xml11_char_not_restricted, is_name_char, is_name_start_char, is_whitespace_char};
 use crate::common::{Position, TextPosition, XmlVersion};
 use crate::name::OwnedName;
@@ -156,6 +157,15 @@ impl PullParser {
     #[deprecated(note = "there is `XmlEvent::Doctype` now")]
     pub fn doctype(&self) -> Option<&str> {
         self.data.doctype.as_deref()
+    }
+
+    pub fn doctype_ids(&self) -> Option<DoctypeRef<'_>> {
+        Some(DoctypeRef {
+            name: &self.data.doctype_name,
+            syntax: self.data.doctype.as_deref()?,
+            public_id: self.data.doctype_public_id.as_deref(),
+            system_id: self.data.doctype_system_id.as_deref(),
+        })
     }
 
     #[inline(never)]

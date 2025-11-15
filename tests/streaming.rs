@@ -186,10 +186,11 @@ fn doctype_public_sytem() {
     let mut it = reader.into_iter();
 
     assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
-    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { name, syntax, public_id, system_id}))
-      if name == "svg" &&
-      public_id == Some(String::from("-//W3C//DTD SVG 1.1//EN")) &&
-      system_id == Some(String::from("http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd")));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { syntax })));
+    let d = it.doctype_ids().unwrap();
+    assert_eq!(d.name(), "svg");
+    assert_eq!(d.public_id(), Some("-//W3C//DTD SVG 1.1//EN"));
+    assert_eq!(d.system_id(), Some("http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"));
 }
 
 #[test]
@@ -200,10 +201,11 @@ fn doctype_system_only() {
     let mut it = reader.into_iter();
 
     assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
-    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { name, syntax, public_id, system_id}))
-      if name == "svg" &&
-      public_id == None &&
-      system_id == Some(String::from("http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd")));
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { syntax })));
+    let d = it.doctype_ids().unwrap();
+    assert_eq!(d.name(), "svg");
+    assert_eq!(d.public_id(), None);
+    assert_eq!(d.system_id(), Some("http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"));
 }
 
 #[test]
@@ -214,10 +216,11 @@ fn doctype_name_only_with_space() {
     let mut it = reader.into_iter();
 
     assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
-    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { name, syntax, public_id, system_id}))
-      if name == "svg" &&
-      public_id.is_none() &&
-      system_id.is_none());
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { syntax })));
+    let d = it.doctype_ids().unwrap();
+    assert_eq!(d.name(), "svg");
+    assert_eq!(d.public_id(), None);
+    assert_eq!(d.system_id(), None);
 }
 
 #[test]
@@ -228,8 +231,9 @@ fn doctype_name_only_name_closing_tag() {
     let mut it = reader.into_iter();
 
     assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
-    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { name, syntax, public_id, system_id}))
-      if name == "svg" &&
-      public_id.is_none() &&
-      system_id.is_none());
+    assert_match!(it.next(), Some(Ok(XmlEvent::Doctype { syntax })));
+    let d = it.doctype_ids().unwrap();
+    assert_eq!(d.name(), "svg");
+    assert_eq!(d.public_id(), None);
+    assert_eq!(d.system_id(), None);
 }

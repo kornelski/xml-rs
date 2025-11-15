@@ -31,9 +31,6 @@ impl PullParser {
                     self.data.doctype_name = self.take_buf();
                     let event = XmlEvent::Doctype {
                         syntax: self.data.doctype.clone().unwrap_or_default(),
-                        name: self.data.doctype_name.clone(),
-                        public_id: self.data.doctype_public_id.clone(),
-                        system_id: self.data.doctype_system_id.clone(),
                     };
                     self.into_state_emit(State::OutsideTag, Ok(event))
                 }
@@ -140,9 +137,6 @@ impl PullParser {
                 Token::TagEnd => {
                     let event = XmlEvent::Doctype {
                         syntax: self.data.doctype.clone().unwrap_or_default(),
-                        name: self.data.doctype_name.clone(),
-                        public_id: self.data.doctype_public_id.clone(),
-                        system_id: self.data.doctype_system_id.clone(),
                     };
                     self.into_state_emit(State::OutsideTag, Ok(event))
                 }

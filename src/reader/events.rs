@@ -114,13 +114,44 @@ pub enum XmlEvent {
     Doctype {
         /// Everything including `<` and `>`
         syntax: String,
-        /// Doctype name, following <?DOCTYPE ...
-        name: String,
-        /// Public id of Doctype, if available. See https://www.w3.org/TR/xml/#NT-ExternalID
-        public_id: Option<String>,
-        /// System id of Doctype, if available See https://www.w3.org/TR/xml/#NT-ExternalID
-        system_id: Option<String>,
     },
+}
+
+/// Supplement to the Doctype event (use the event if you want the full syntax)
+pub struct DoctypeRef<'tmp> {
+    pub(crate) syntax: &'tmp str,
+    /// Doctype name, following <?DOCTYPE ...
+    pub(crate) name: &'tmp str,
+    /// Public id of Doctype, if available. See https://www.w3.org/TR/xml/#NT-ExternalID
+    pub(crate) public_id: Option<&'tmp str>,
+    /// System id of Doctype, if available See https://www.w3.org/TR/xml/#NT-ExternalID
+    pub(crate) system_id: Option<&'tmp str>,
+}
+
+impl DoctypeRef<'_> {
+    /// Doctype name, following <?DOCTYPE ...
+    pub fn name(&self) -> &str {
+        self.name
+    }
+
+    /// Public id of Doctype, if available. See https://www.w3.org/TR/xml/#NT-ExternalID
+    pub fn public_id(&self) -> Option<&str> {
+        self.public_id
+    }
+
+    /// System id of Doctype, if available See https://www.w3.org/TR/xml/#NT-ExternalID
+    pub fn system_id(&self) -> Option<&str> {
+        self.system_id
+    }
+}
+
+impl std::ops::Deref for DoctypeRef<'_> {
+    type Target = str;
+
+    /// Don't use it. It's for back-compat with v0.8
+    fn deref(&self) -> &Self::Target {
+        self.syntax
+    }
 }
 
 impl fmt::Debug for XmlEvent {
@@ -155,8 +186,8 @@ impl fmt::Debug for XmlEvent {
                 write!(f, "Characters({data})"),
             Self::Whitespace(data) =>
                 write!(f, "Whitespace({data})"),
-            Self::Doctype { syntax, name, public_id, system_id } =>
-                write!(f, "Doctype({syntax}, {name}, {:?}, {:?})", public_id, system_id)
+            Self::Doctype { syntax } =>
+                write!(f, "Doctype({syntax})"),
         }
     }
 }
