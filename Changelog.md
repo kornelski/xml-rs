@@ -1,3 +1,8 @@
+## Version 1.2
+
+* Tolerate future XML versions in the XML prolog, as allowed by the XML 1.0 grammar
+* `doctype_ids()` for additional DOCTYPE details
+
 ## Version 1.1
 
 * `Events` iterator can access the underlying `EventReader`.
