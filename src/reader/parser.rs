@@ -61,6 +61,7 @@ type ElementStack = Vec<OwnedName>;
 pub type Result = super::Result<XmlEvent>;
 
 /// Pull-based XML parser.
+#[derive(Clone)]
 pub(crate) struct PullParser {
     config: ParserConfig,
     lexer: Lexer,
@@ -340,6 +341,7 @@ impl QuoteToken {
     }
 }
 
+#[derive(Clone)]
 struct MarkupData {
     name: String,     // used for processing instruction name
     ref_data: String,  // used for reference content
