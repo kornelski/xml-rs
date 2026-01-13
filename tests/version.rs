@@ -28,7 +28,7 @@ fn rejected_xml_versions() {
     let rejected_versions = ["1", "1.", "2.0", "1.0.0", "10", "1.0-", "100", "17.0"];
 
     for version in rejected_versions {
-        let source = format!(r#"<?xml version="{version}"?>"#, version = version);
+        let source = format!(r#"<?xml version="{version}"?>"#);
 
         let buf = Cursor::new(source);
         let reader = EventReader::new(buf);
