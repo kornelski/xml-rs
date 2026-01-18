@@ -8,3 +8,7 @@
 *.iml
 /tests/xmlconf/
 .DS_Store
+
+cobertura.xml
+lcov.info
+tarpaulin-report.*
