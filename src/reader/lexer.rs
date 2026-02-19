@@ -247,7 +247,7 @@ impl Lexer {
     /// Returns a new lexer with default state.
     pub(crate) fn new(config: &ParserConfig) -> Self {
         Self {
-            reader: CharReader::new(),
+            reader: CharReader::new(Encoding::Unknown),
             pos: TextPosition::new(),
             head_pos: TextPosition::new(),
             char_queue: VecDeque::with_capacity(4), // TODO: check size

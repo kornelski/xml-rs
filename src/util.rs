@@ -103,8 +103,10 @@ pub(crate) struct CharReader {
 }
 
 impl CharReader {
-    pub const fn new() -> Self {
-        Self { encoding: Encoding::Unknown }
+    pub fn new(encoding: Encoding) -> Self {
+        Self {
+            encoding,
+        }
     }
 
     #[inline]
@@ -228,73 +230,73 @@ mod tests {
         use std::io;
 
         let mut bytes: &[u8] = b"correct";    // correct ASCII
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), Some('c'));
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), Some('c'));
 
         let mut bytes: &[u8] = b"\xEF\xBB\xBF\xE2\x80\xA2!";  // BOM
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), Some('•'));
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), Some('•'));
 
         let mut bytes: &[u8] = b"\xEF\xBB\xBFx123";  // BOM
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), Some('x'));
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), Some('x'));
 
         let mut bytes: &[u8] = b"\xEF\xBB\xBF";  // Nothing after BOM
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), None);
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), None);
 
         let mut bytes: &[u8] = b"\xEF\xBB";  // Nothing after BO
-        assert!(matches!(CharReader::new().next_char_from(&mut bytes), Err(CharReadError::UnexpectedEof)));
+        assert!(matches!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes), Err(CharReadError::UnexpectedEof)));
 
         let mut bytes: &[u8] = b"\xEF\xBB\x42";  // Nothing after BO
-        assert!(CharReader::new().next_char_from(&mut bytes).is_err());
+        assert!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).is_err());
 
         let mut bytes: &[u8] = b"\xFE\xFF\x00\x42";  // UTF-16
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), Some('B'));
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), Some('B'));
 
         let mut bytes: &[u8] = b"\xFF\xFE\x42\x00";  // UTF-16
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), Some('B'));
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), Some('B'));
 
         let mut bytes: &[u8] = b"\xFF\xFE";  // UTF-16
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), None);
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), None);
 
         let mut bytes: &[u8] = b"\xFF\xFE\x00";  // UTF-16
-        assert!(matches!(CharReader::new().next_char_from(&mut bytes), Err(CharReadError::UnexpectedEof)));
+        assert!(matches!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes), Err(CharReadError::UnexpectedEof)));
 
         let mut bytes: &[u8] = "правильно".as_bytes();  // correct BMP
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), Some('п'));
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), Some('п'));
 
         let mut bytes: &[u8] = "правильно".as_bytes();
-        assert_eq!(CharReader { encoding: Encoding::Utf16Be }.next_char_from(&mut bytes).unwrap(), Some('킿'));
+        assert_eq!(CharReader::new(Encoding::Utf16Be).next_char_from(&mut bytes).unwrap(), Some('킿'));
 
         let mut bytes: &[u8] = "правильно".as_bytes();
-        assert_eq!(CharReader { encoding: Encoding::Utf16Le }.next_char_from(&mut bytes).unwrap(), Some('뿐'));
+        assert_eq!(CharReader::new(Encoding::Utf16Le).next_char_from(&mut bytes).unwrap(), Some('뿐'));
 
         let mut bytes: &[u8] = b"\xD8\xD8\x80";
-        assert!(CharReader { encoding: Encoding::Utf16 }.next_char_from(&mut bytes).is_err());
+        assert!(CharReader::new(Encoding::Utf16).next_char_from(&mut bytes).is_err());
 
         let mut bytes: &[u8] = b"\x00\x42";
-        assert_eq!(CharReader { encoding: Encoding::Utf16 }.next_char_from(&mut bytes).unwrap(), Some('B'));
+        assert_eq!(CharReader::new(Encoding::Utf16).next_char_from(&mut bytes).unwrap(), Some('B'));
 
         let mut bytes: &[u8] = b"\x42\x00";
-        assert_eq!(CharReader { encoding: Encoding::Utf16 }.next_char_from(&mut bytes).unwrap(), Some('B'));
+        assert_eq!(CharReader::new(Encoding::Utf16).next_char_from(&mut bytes).unwrap(), Some('B'));
 
         let mut bytes: &[u8] = &[0xEF, 0xBB, 0xBF, 0xFF, 0xFF];
-        assert!(CharReader { encoding: Encoding::Utf16 }.next_char_from(&mut bytes).is_err());
+        assert!(CharReader::new(Encoding::Utf16).next_char_from(&mut bytes).is_err());
 
         let mut bytes: &[u8] = b"\x00";
-        assert!(CharReader { encoding: Encoding::Utf16Be }.next_char_from(&mut bytes).is_err());
+        assert!(CharReader::new(Encoding::Utf16Be).next_char_from(&mut bytes).is_err());
 
         let mut bytes: &[u8] = "😊".as_bytes();          // correct non-BMP
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), Some('😊'));
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), Some('😊'));
 
         let mut bytes: &[u8] = b"";                     // empty
-        assert_eq!(CharReader::new().next_char_from(&mut bytes).unwrap(), None);
+        assert_eq!(CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap(), None);
 
         let mut bytes: &[u8] = b"\xf0\x9f\x98";         // incomplete code point
-        match CharReader::new().next_char_from(&mut bytes).unwrap_err() {
+        match CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap_err() {
             super::CharReadError::UnexpectedEof => {},
             e => panic!("Unexpected result: {e:?}")
         }
 
         let mut bytes: &[u8] = b"\xff\x9f\x98\x32";     // invalid code point
-        match CharReader::new().next_char_from(&mut bytes).unwrap_err() {
+        match CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap_err() {
             super::CharReadError::Utf8(_) => {},
             e => panic!("Unexpected result: {e:?}"),
         }
@@ -308,7 +310,7 @@ mod tests {
         }
 
         let mut r = ErrorReader;
-        match CharReader::new().next_char_from(&mut r).unwrap_err() {
+        match CharReader::new(Encoding::Unknown).next_char_from(&mut r).unwrap_err() {
             super::CharReadError::Io(ref e) if e.kind() == io::ErrorKind::Other &&
                                                e.to_string().contains("test error") => {},
             e => panic!("Unexpected result: {e:?}")
