@@ -100,124 +100,209 @@ impl fmt::Display for Encoding {
 #[derive(Clone)]
 pub(crate) struct CharReader {
     pub encoding: Encoding,
+    pub buf: Buf,
+    pub is_last: bool,
+}
+
+#[derive(Clone)]
+pub(crate) struct Buf {
+    data: Vec<u8>,
+    pos: usize,
+}
+
+#[allow(unused)]
+impl Buf {
+    pub fn is_empty(&self) -> bool {
+        self.data.len() == self.pos
+    }
+
+    pub fn len(&self) -> usize {
+        self.data.len() - self.pos
+    }
+
+    pub fn get(&self) -> &[u8] {
+        let res = self.data.get(self.pos..);
+        debug_assert!(res.is_some());
+        res.unwrap_or_default()
+    }
+
+    pub fn spare_capacity(&self) -> usize {
+        self.data.capacity() - self.data.len()
+    }
+
+    pub fn reserve(&mut self) {
+        if self.pos > self.data.len()/2 {
+            let remaining = self.data.len() - self.pos;
+            self.data.copy_within(self.pos.., 0);
+            self.pos = 0;
+            self.data.truncate(remaining);
+        }
+    }
 }
 
 impl CharReader {
     pub fn new(encoding: Encoding) -> Self {
         Self {
             encoding,
+            buf: Buf {
+                data: Vec::with_capacity(128),
+                pos: 0,
+            },
+            is_last: false,
         }
     }
 
-    #[inline]
-    pub fn next_char_from<R: Read>(&mut self, source: &mut R) -> Result<Option<char>, CharReadError> {
-        let mut bytes = source.bytes();
-        const MAX_CODEPOINT_LEN: usize = 4;
-
-        let mut buf = [0u8; MAX_CODEPOINT_LEN];
-        let mut pos = 0;
-        while pos < MAX_CODEPOINT_LEN {
-            let next = match bytes.next() {
-                Some(Ok(b)) => b,
-                Some(Err(e)) => return Err(e.into()),
-                None if pos == 0 => return Ok(None),
-                None => return Err(CharReadError::UnexpectedEof),
-            };
-
-            match self.encoding {
-                Encoding::Utf8 | Encoding::Default => {
-                    // fast path for ASCII subset
-                    if pos == 0 && next.is_ascii() {
-                        return Ok(Some(next.into()));
+    pub fn next_char_from<R: Read>(&mut self, reader: &mut R) -> Result<Option<char>, CharReadError> {
+        loop {
+            match self.consuming_next() {
+                Some(Ok(ch)) => {
+                    return Ok(Some(ch))
+                },
+                Some(Err(e)) => return Err(e),
+                None if self.is_last => {
+                    if self.buf.is_empty() {
+                        return Ok(None);
                     }
-
-                    buf[pos] = next;
-                    pos += 1;
-
-                    match str::from_utf8(&buf[..pos]) {
-                        Ok(s) => return Ok(s.chars().next()), // always Some(..)
-                        Err(_) if pos < MAX_CODEPOINT_LEN => continue,
-                        Err(e) => return Err(e.into()),
-                    }
+                    return Err(CharReadError::UnexpectedEof)
                 },
-                Encoding::Latin1 => {
-                    return Ok(Some(next.into()));
-                },
-                Encoding::Ascii => {
-                    return if next.is_ascii() {
-                        Ok(Some(next.into()))
-                    } else {
-                        Err(CharReadError::Io(io::Error::new(io::ErrorKind::InvalidData, "char is not ASCII")))
-                    };
-                },
-                Encoding::Unknown | Encoding::Utf16 => {
-                    buf[pos] = next;
-                    pos += 1;
-                    if let Some(value) = self.sniff_bom(&buf[..pos], &mut pos) {
-                        return value;
-                    }
-                },
-                Encoding::Utf16Be => {
-                    buf[pos] = next;
-                    pos += 1;
-                    if pos == 2 {
-                        if let Some(Ok(c)) = char::decode_utf16([u16::from_be_bytes(buf[..2].try_into().unwrap())]).next() {
-                            return Ok(Some(c));
+                None => {
+                    self.buf.reserve();
+                    let spare = self.buf.spare_capacity();
+                    let read = reader.take(spare as u64).read_to_end(&mut self.buf.data)?;
+                    if read == 0 {
+                        if self.buf.is_empty() {
+                            return Ok(None);
                         }
-                    } else if pos == 4 {
-                        return Self::surrogate([u16::from_be_bytes(buf[..2].try_into().unwrap()), u16::from_be_bytes(buf[2..4].try_into().unwrap())]);
+                        self.is_last = true;
                     }
-                },
-                Encoding::Utf16Le => {
-                    buf[pos] = next;
-                    pos += 1;
-                    if pos == 2 {
-                        if let Some(Ok(c)) = char::decode_utf16([u16::from_le_bytes(buf[..2].try_into().unwrap())]).next() {
-                            return Ok(Some(c));
-                        }
-                    } else if pos == 4 {
-                        return Self::surrogate([u16::from_le_bytes(buf[..2].try_into().unwrap()), u16::from_le_bytes(buf[2..4].try_into().unwrap())]);
+                    if let Encoding::Unknown | Encoding::Utf16 = self.encoding {
+                        self.sniff_bom()?;
                     }
                 },
             }
         }
-        Err(CharReadError::Io(io::ErrorKind::InvalidData.into()))
+    }
+
+    // None means "needs more input"
+    #[inline]
+    pub fn consuming_next(&mut self) -> Option<Result<char, CharReadError>> {
+        let bytes = self.buf.data.get(self.buf.pos..)?;
+        let bytes = &bytes[..bytes.len().min(6)];
+        let next = bytes.get(0).copied()?;
+
+        match self.encoding {
+            Encoding::Utf8 | Encoding::Default => {
+                // fast path for ASCII subset
+                if next.is_ascii() {
+                    self.buf.pos += 1;
+                    return Some(Ok(next.into()));
+                }
+
+                for char_len in 1..5 {
+                    match str::from_utf8(bytes.get(..char_len)?) {
+                        Ok(s) => {
+                            self.buf.pos += s.len();
+                            return s.chars().next().map(Ok);
+                        },
+                        Err(e) if char_len == 4 => {
+                            return Some(Err(CharReadError::Utf8(e)));
+                        },
+                        Err(_) => {},
+                    }
+                }
+                return None;
+            },
+            Encoding::Latin1 => {
+                self.buf.pos += 1;
+                return Some(Ok(next.into()));
+            },
+            Encoding::Ascii => {
+                return if next.is_ascii() {
+                    self.buf.pos += 1;
+                    Some(Ok(next.into()))
+                } else {
+                    return Some(Err(CharReadError::Io(io::ErrorKind::InvalidData.into())));
+                };
+            },
+            Encoding::Utf16Be => {
+                if !self.is_last && bytes.len() < 4 {
+                    return None;
+                }
+                let mut consumed = 0;
+                let mut chars = char::decode_utf16(bytes.chunks(2).map_while(|ch: &[u8]| {
+                    consumed += ch.len();
+                    Some(u16::from_be_bytes(ch.try_into().ok()?))
+                }));
+                let ch = chars.next()?;
+                let ch = ch.ok()?;
+                self.buf.pos += consumed;
+                return Some(Ok(ch));
+            },
+            Encoding::Utf16Le => {
+                if !self.is_last && bytes.len() < 4 {
+                    return None;
+                }
+                let mut consumed = 0;
+                let mut chars = char::decode_utf16(bytes.chunks(2).map_while(|ch: &[u8]| {
+                    consumed += ch.len();
+                    Some(u16::from_le_bytes(ch.try_into().ok()?))
+                }));
+                let ch = chars.next()?;
+                let ch = ch.ok()?;
+                self.buf.pos += consumed;
+                return Some(Ok(ch));
+            },
+            Encoding::Unknown | Encoding::Utf16 => {
+                return None
+            },
+        }
     }
 
     #[cold]
-    fn sniff_bom(&mut self, buf: &[u8], pos: &mut usize) -> Option<Result<Option<char>, CharReadError>> {
-        // sniff BOM
-        if buf.len() <= 3 && [0xEF, 0xBB, 0xBF].starts_with(buf) {
-            if buf.len() == 3 && self.encoding != Encoding::Utf16 {
-                *pos = 0;
+    fn sniff_bom(&mut self) -> Result<(), CharReadError> {
+        let buf = self.buf.get();
+
+        if buf.len() < 3 && !self.is_last {
+            // it will be called again until encoding is changed to a known one
+            return Ok(());
+        }
+
+        if buf.len() > 1 {
+            // sniff BOM
+            if self.encoding != Encoding::Utf16 && buf.starts_with(&[0xEF, 0xBB, 0xBF]) {
                 self.encoding = Encoding::Utf8;
+                self.buf.pos += 3;
+                return Ok(());
             }
-        } else if buf.len() <= 2 && [0xFE, 0xFF].starts_with(buf) {
-            if buf.len() == 2 {
-                *pos = 0;
+            if buf.starts_with(&[0xFE, 0xFF]) {
                 self.encoding = Encoding::Utf16Be;
+                self.buf.pos += 2;
+                return Ok(());
             }
-        } else if buf.len() <= 2 && [0xFF, 0xFE].starts_with(buf) {
-            if buf.len() == 2 {
-                *pos = 0;
+            if buf.starts_with(&[0xFF, 0xFE]) {
                 self.encoding = Encoding::Utf16Le;
+                self.buf.pos += 2;
+                return Ok(());
             }
-        } else if buf.len() == 1 && self.encoding == Encoding::Utf16 {
+
             // sniff ASCII char in UTF-16
-            self.encoding = if buf[0] == 0 { Encoding::Utf16Be } else { Encoding::Utf16Le };
-        } else {
-            // UTF-8 is the default, but XML decl can change it to other 8-bit encoding
-            self.encoding = Encoding::Default;
-            if buf.len() == 1 && buf[0].is_ascii() {
-                return Some(Ok(Some(buf[0].into())));
+            if self.encoding == Encoding::Utf16 {
+                if buf[0] == 0 && buf[1] != 0 {
+                    self.encoding = Encoding::Utf16Be;
+                    return Ok(());
+                }
+                if buf[0] != 0 && buf[1] == 0 {
+                    self.encoding = Encoding::Utf16Le;
+                    return Ok(());
+                }
             }
         }
-        None
-    }
-
-    fn surrogate(buf: [u16; 2]) -> Result<Option<char>, CharReadError> {
-        char::decode_utf16(buf).next().transpose()
-            .map_err(|e| CharReadError::Io(io::Error::new(io::ErrorKind::InvalidData, e)))
+        if self.encoding != Encoding::Utf16 {
+            // UTF-8 is the default, but XML decl can change it to other 8-bit encoding
+            self.encoding = Encoding::Default;
+            return Ok(());
+        }
+        Err(CharReadError::Io(io::ErrorKind::InvalidData.into()))
     }
 }
 

@@ -278,7 +278,10 @@ impl Lexer {
 
     /// Reset the eof handled flag of the lexer.
     #[inline]
-    pub fn reset_eof_handled(&mut self) { self.eof_handled = false; }
+    pub fn reset_eof_handled(&mut self) {
+        self.eof_handled = false;
+        self.reader.is_last = false;
+    }
 
     /// Tries to read the next token from the buffer.
     ///
