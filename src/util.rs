@@ -131,11 +131,47 @@ impl Buf {
     }
 
     pub fn reserve(&mut self) {
-        if self.pos > self.data.len()/2 {
-            let remaining = self.data.len() - self.pos;
-            self.data.copy_within(self.pos.., 0);
+        if self.is_empty() {
+            self.data.clear();
             self.pos = 0;
-            self.data.truncate(remaining);
+        } else {
+            debug_assert!(self.pos < self.data.len());
+            if self.pos > self.data.len()/2 && self.pos > 0 {
+                let remaining = self.data.len() - self.pos;
+                self.data.copy_within(self.pos.., 0);
+                self.pos = 0;
+                self.data.truncate(remaining);
+                debug_assert!(self.pos < self.data.len());
+            }
+        }
+    }
+
+    fn reserve_prepend(&mut self, len_before_pos: usize) {
+        debug_assert!(self.pos < self.data.len());
+        if self.pos < len_before_pos {
+            let orig_len = self.data.len();
+            let needed = orig_len + len_before_pos;
+            if self.data.len() < needed {
+                self.data.resize(needed, 0);
+            }
+            self.data.copy_within(self.pos..orig_len, self.pos + len_before_pos);
+            self.pos += len_before_pos;
+            debug_assert!(self.pos < self.data.len());
+        }
+    }
+
+    pub fn prepend(&mut self, new_bytes: &[u8]) {
+        debug_assert!(!new_bytes.is_empty());
+        if self.is_empty() {
+            self.data.clear();
+            self.pos = 0;
+            self.data.extend_from_slice(new_bytes);
+        } else {
+            self.reserve_prepend(new_bytes.len());
+            debug_assert!(self.pos >= new_bytes.len());
+            debug_assert!(self.pos < self.data.len());
+            self.data[self.pos - new_bytes.len() .. self.pos].copy_from_slice(new_bytes);
+            self.pos -= new_bytes.len();
         }
     }
 }
@@ -156,6 +192,7 @@ impl CharReader {
         loop {
             match self.consuming_next() {
                 Some(Ok(ch)) => {
+                    debug_assert!(self.buf.pos > 0);
                     return Ok(Some(ch))
                 },
                 Some(Err(e)) => return Err(e),
@@ -188,7 +225,7 @@ impl CharReader {
     pub fn consuming_next(&mut self) -> Option<Result<char, CharReadError>> {
         let bytes = self.buf.data.get(self.buf.pos..)?;
         let bytes = &bytes[..bytes.len().min(6)];
-        let next = bytes.get(0).copied()?;
+        let next = bytes.first().copied()?;
 
         match self.encoding {
             Encoding::Utf8 | Encoding::Default => {
@@ -198,6 +235,7 @@ impl CharReader {
                     return Some(Ok(next.into()));
                 }
 
+                // TODO: just compute the utf-8 len
                 for char_len in 1..5 {
                     match str::from_utf8(bytes.get(..char_len)?) {
                         Ok(s) => {
@@ -210,19 +248,19 @@ impl CharReader {
                         Err(_) => {},
                     }
                 }
-                return None;
+                None
             },
             Encoding::Latin1 => {
                 self.buf.pos += 1;
-                return Some(Ok(next.into()));
+                Some(Ok(next.into()))
             },
             Encoding::Ascii => {
-                return if next.is_ascii() {
+                if next.is_ascii() {
                     self.buf.pos += 1;
                     Some(Ok(next.into()))
                 } else {
-                    return Some(Err(CharReadError::Io(io::ErrorKind::InvalidData.into())));
-                };
+                    Some(Err(CharReadError::Io(io::ErrorKind::InvalidData.into())))
+                }
             },
             Encoding::Utf16Be => {
                 if !self.is_last && bytes.len() < 4 {
@@ -235,8 +273,9 @@ impl CharReader {
                 }));
                 let ch = chars.next()?;
                 let ch = ch.ok()?;
+                debug_assert!(consumed > 0);
                 self.buf.pos += consumed;
-                return Some(Ok(ch));
+                Some(Ok(ch))
             },
             Encoding::Utf16Le => {
                 if !self.is_last && bytes.len() < 4 {
@@ -250,10 +289,11 @@ impl CharReader {
                 let ch = chars.next()?;
                 let ch = ch.ok()?;
                 self.buf.pos += consumed;
-                return Some(Ok(ch));
+                debug_assert!(consumed > 0);
+                Some(Ok(ch))
             },
             Encoding::Unknown | Encoding::Utf16 => {
-                return None
+                None
             },
         }
     }
@@ -304,11 +344,57 @@ impl CharReader {
         }
         Err(CharReadError::Io(io::ErrorKind::InvalidData.into()))
     }
+
+    pub(crate) fn inject(&mut self, markup: &str) {
+        // TODO: valid for utf-8 only!!
+        self.buf.prepend(markup.as_bytes());
+    }
+
+    #[cfg_attr(debug_assertions, track_caller)]
+    pub(crate) fn unconsume(&mut self, num_chars: usize) {
+        debug_assert!(self.buf.pos >= num_chars, "{} vs {}", self.buf.pos, num_chars);
+        // TODO: broken for non-ASCII!
+        self.buf.pos -= num_chars;
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::{CharReadError, CharReader, Encoding};
+
+    #[test]
+    fn test_unconsume() {
+        let mut bytes: &[u8] = b"abc";
+        let mut ch = CharReader::new(Encoding::Utf8);
+        assert_eq!('a', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        ch.unconsume(1);
+        assert_eq!('a', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        assert_eq!('b', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        ch.unconsume(1);
+        assert_eq!('b', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        ch.unconsume(1);
+        assert_eq!('b', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        ch.unconsume(1);
+        assert_eq!('b', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        ch.unconsume(1);
+        assert_eq!('b', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        ch.unconsume(1);
+        assert_eq!('b', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        ch.unconsume(1);
+        assert_eq!('b', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        assert_eq!('c', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        assert!(ch.buf.is_empty());
+        ch.unconsume(1);
+        assert!(!ch.buf.is_empty());
+        assert_eq!('c', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        assert!(ch.buf.is_empty());
+        ch.buf.prepend(b"xz");
+        assert!(!ch.buf.is_empty());
+        assert_eq!('x', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        ch.buf.prepend(b"y");
+        assert_eq!('y', ch.next_char_from(&mut bytes).unwrap().unwrap());
+        assert_eq!('z', ch.next_char_from(&mut bytes).unwrap().unwrap());
+    }
 
     #[test]
     fn test_next_char_from() {

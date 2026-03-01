@@ -6,7 +6,6 @@ use crate::common::{is_name_char, is_whitespace_char, is_xml10_char, is_xml11_ch
 use crate::reader::error::SyntaxError;
 use crate::reader::Error;
 use crate::util::{CharReader, Encoding};
-use std::collections::VecDeque;
 use std::io::Read;
 use std::{fmt, result};
 
@@ -224,12 +223,12 @@ pub(crate) struct Lexer {
     reader: CharReader,
     pos: TextPosition,
     head_pos: TextPosition,
-    char_queue: VecDeque<char>,
     /// Default state to go back to after a tag end (may be `InsideDoctype`)
     normal_state: State,
     inside_token: bool,
     eof_handled: bool,
     reparse_depth: u8,
+    reparse_len: usize,
     #[cfg(test)]
     skip_errors: bool,
 
@@ -250,12 +249,12 @@ impl Lexer {
             reader: CharReader::new(Encoding::Unknown),
             pos: TextPosition::new(),
             head_pos: TextPosition::new(),
-            char_queue: VecDeque::with_capacity(4), // TODO: check size
             st: State::Normal,
             normal_state: State::Normal,
             inside_token: false,
             eof_handled: false,
             reparse_depth: 0,
+            reparse_len: 0,
             #[cfg(test)]
             skip_errors: false,
 
@@ -303,20 +302,17 @@ impl Lexer {
             self.inside_token = true;
         }
 
-        // Check if we have saved a char or two for ourselves
-        while let Some(c) = self.char_queue.pop_front() {
-            if let Some(t) = self.dispatch_char(c)? {
-                self.inside_token = false;
-                return Ok(t);
-            }
-        }
         // if char_queue is empty, all circular reparsing is done
         self.reparse_depth = 0;
         while let Some(c) = self.reader.next_char_from(b)? {
-            if c == '\n' {
-                self.head_pos.new_line();
+            if self.reparse_len == 0 {
+                if c == '\n' {
+                    self.head_pos.new_line();
+                } else {
+                    self.head_pos.advance(1);
+                }
             } else {
-                self.head_pos.advance(1);
+                self.reparse_len -= 1; // TODO: fix for multibyte
             }
 
             if let Some(t) = self.dispatch_char(c)? {
@@ -350,7 +346,8 @@ impl Lexer {
                 Ok(Token::Character(']')),
             State::InvalidCDataClosing(ClosingSubstate::Second) => {
                 self.eof_handled = false;
-                Ok(self.move_to_with_unread(State::Normal, &[']'], Token::Character(']')))
+                self.reparse("]")?;
+                Ok(self.move_to_with(State::Normal, Token::Character(']')))
             },
             State::Normal => Ok(Token::Eof),
         }
@@ -404,10 +401,18 @@ impl Lexer {
         token
     }
 
-    fn move_to_with_unread(&mut self, st: State, cs: &[char], token: Token) -> Token {
-        for c in cs.iter().rev().copied() {
-            self.char_queue.push_front(c);
-        }
+    #[cfg_attr(debug_assertions, track_caller)]
+    fn move_to_with_unread_char(&mut self, st: State, token: Token) -> Token {
+        // TODO: fix ASCII-only
+        self.reader.unconsume(1);
+        self.reparse_len += 1;
+        self.move_to_with(st, token)
+    }
+
+    fn move_to_with_unread_chars2(&mut self, st: State, token: Token) -> Token {
+        // TODO: fix ASCII-only
+        self.reader.unconsume(2);
+        self.reparse_len += 2;
         self.move_to_with(st, token)
     }
 
@@ -417,15 +422,13 @@ impl Lexer {
         }
 
         self.reparse_depth += 1;
-        if self.reparse_depth > self.max_entity_expansion_depth || self.char_queue.len() > self.max_entity_expansion_length {
+        if self.reparse_depth > self.max_entity_expansion_depth || self.reparse_len > self.max_entity_expansion_length {
             return Err(self.error(SyntaxError::EntityTooBig));
         }
 
-        self.eof_handled = false;
-        self.char_queue.reserve(markup.len());
-        for c in markup.chars().rev() {
-            self.char_queue.push_front(c);
-        }
+        self.reset_eof_handled();
+        self.reparse_len += markup.len();
+        self.reader.inject(markup);
 
         Ok(())
     }
@@ -438,8 +441,10 @@ impl Lexer {
         if self.skip_errors {
             let mut chars = chunk.chars();
             let first = chars.next().unwrap_or('\0');
-            self.char_queue.extend(chars);
-            self.char_queue.push_back(c);
+            let rest = chars.as_str();
+            let mut tmp = String::from(rest);
+            tmp.push(c);
+            self.reparse(&tmp)?;
             return Ok(Some(self.move_to_with(State::Normal, Token::Character(first))));
         }
         Err(self.error(SyntaxError::UnexpectedTokenBefore(chunk, c)))
@@ -496,8 +501,8 @@ impl Lexer {
             '?'                        => Ok(Some(self.move_to_with(State::InsideProcessingInstruction, Token::ProcessingInstructionStart))),
             '/'                        => Ok(Some(self.move_to_with(self.normal_state, Token::ClosingTagStart))),
             '!'                        => Ok(self.move_to(State::CommentOrCDataOrDoctypeStarted)),
-            _ if is_whitespace_char(c) => Ok(Some(self.move_to_with_unread(self.normal_state, &[c], Token::OpeningTagStart))),
-            _ if is_name_char(c)       => Ok(Some(self.move_to_with_unread(self.normal_state, &[c], Token::OpeningTagStart))),
+            _ if is_whitespace_char(c) => Ok(Some(self.move_to_with_unread_char(self.normal_state, Token::OpeningTagStart))),
+            _ if is_name_char(c)       => Ok(Some(self.move_to_with_unread_char(self.normal_state, Token::OpeningTagStart))),
             _                          => self.handle_error("<", c)
         }
     }
@@ -509,7 +514,7 @@ impl Lexer {
             '[' => Ok(self.move_to(State::CDataStarted(CDataStartedSubstate::E))),
             'D' => Ok(self.move_to(State::DoctypeStarted(DoctypeStartedSubstate::D))),
             'E' | 'A' | 'N' if matches!(self.normal_state, State::InsideDoctype) => {
-                Ok(Some(self.move_to_with_unread(State::InsideMarkupDeclaration, &[c], Token::MarkupDeclarationStart)))
+                Ok(Some(self.move_to_with_unread_char(State::InsideMarkupDeclaration, Token::MarkupDeclarationStart)))
             },
             _ => self.handle_error("<!", c),
         }
@@ -587,7 +592,7 @@ impl Lexer {
     fn processing_instruction_closing(&mut self, c: char) -> Token {
         match c {
             '>' => self.move_to_with(self.normal_state, Token::ProcessingInstructionEnd),
-            _ => self.move_to_with_unread(State::InsideProcessingInstruction, &[c], Token::Character('?')),
+            _ => self.move_to_with_unread_char(State::InsideProcessingInstruction, Token::Character('?')),
         }
     }
 
@@ -595,7 +600,7 @@ impl Lexer {
     fn empty_element_closing(&mut self, c: char) -> Token {
         match c {
             '>' => self.move_to_with(self.normal_state, Token::EmptyTagEnd),
-            _ => self.move_to_with_unread(self.normal_state, &[c], Token::Character('/')),
+            _ => self.move_to_with_unread_char(self.normal_state, Token::Character('/')),
         }
     }
 
@@ -604,7 +609,7 @@ impl Lexer {
         match s {
             ClosingSubstate::First => match c {
                 '-' => Ok(self.move_to(State::CommentClosing(ClosingSubstate::Second))),
-                _ => Ok(Some(self.move_to_with_unread(State::InsideComment, &[c], Token::Character('-')))),
+                _ => Ok(Some(self.move_to_with_unread_char(State::InsideComment, Token::Character('-')))),
             },
             ClosingSubstate::Second => match c {
                 '>' => Ok(Some(self.move_to_with(self.normal_state, Token::CommentEnd))),
@@ -619,11 +624,11 @@ impl Lexer {
         match s {
             ClosingSubstate::First => match c {
                 ']' => self.move_to(State::CDataClosing(ClosingSubstate::Second)),
-                _ => Some(self.move_to_with_unread(State::InsideCdata, &[c], Token::Character(']'))),
+                _ => Some(self.move_to_with_unread_char(State::InsideCdata, Token::Character(']'))),
             },
             ClosingSubstate::Second => match c {
                 '>' => Some(self.move_to_with(State::Normal, Token::CDataEnd)),
-                _ => Some(self.move_to_with_unread(State::InsideCdata, &[']', c], Token::Character(']'))),
+                _ => Some(self.move_to_with_unread_chars2(State::InsideCdata, Token::Character(']'))),
             },
         }
     }
@@ -633,11 +638,11 @@ impl Lexer {
         match s {
             ClosingSubstate::First => match c {
                 ']' => self.move_to(State::InvalidCDataClosing(ClosingSubstate::Second)),
-                _ => Some(self.move_to_with_unread(State::Normal, &[c], Token::Character(']'))),
+                _ => Some(self.move_to_with_unread_char(State::Normal, Token::Character(']'))),
             },
             ClosingSubstate::Second => match c {
                 '>' => Some(self.move_to_with(self.normal_state, Token::CDataEnd)),
-                _ => Some(self.move_to_with_unread(State::Normal, &[']', c], Token::Character(']'))),
+                _ => Some(self.move_to_with_unread_chars2(State::Normal, Token::Character(']'))),
             },
         }
     }
@@ -654,7 +659,8 @@ mod tests {
     macro_rules! assert_oks(
         (for $lex:ident and $buf:ident ; $($e:expr)+) => ({
             $(
-                assert_eq!(Ok($e), $lex.next_token(&mut $buf));
+                let tmp = $e;
+                assert_eq!(Ok(tmp), $lex.next_token(&mut $buf), "expected '{}'", tmp);
              )+
         })
     );
