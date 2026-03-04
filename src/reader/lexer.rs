@@ -278,7 +278,9 @@ impl Lexer {
 
     /// Reset the eof handled flag of the lexer.
     #[inline]
-    pub fn reset_eof_handled(&mut self) { self.eof_handled = false; }
+    pub fn reset_eof_handled(&mut self) {
+        self.eof_handled = false;
+    }
 
     /// Tries to read the next token from the buffer.
     ///
@@ -409,7 +411,7 @@ impl Lexer {
             return Err(self.error(SyntaxError::EntityTooBig));
         }
 
-        self.eof_handled = false;
+        self.reset_eof_handled();
         self.char_queue.reserve(markup.len());
         for c in markup.chars().rev() {
             self.char_queue.push_front(c);
@@ -642,7 +644,8 @@ mod tests {
     macro_rules! assert_oks(
         (for $lex:ident and $buf:ident ; $($e:expr)+) => ({
             $(
-                assert_eq!(Ok($e), $lex.next_token(&mut $buf));
+                let tmp = $e;
+                assert_eq!(Ok(tmp), $lex.next_token(&mut $buf), "expected '{}'", tmp);
              )+
         })
     );

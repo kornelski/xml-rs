@@ -316,4 +316,41 @@ mod tests {
             e => panic!("Unexpected result: {e:?}")
         }
     }
+
+    #[test]
+    fn test_latin1_transcoding() {
+        let mut bytes: &[u8] = &[0xE9, 0x20, 0xFC]; // é, space, ü
+        let mut ch = CharReader::new(Encoding::Latin1);
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), Some('é'));
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), Some(' '));
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), Some('ü'));
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), None);
+    }
+
+    #[test]
+    fn test_ascii_encoding() {
+        let mut bytes: &[u8] = b"ok";
+        let mut ch = CharReader::new(Encoding::Ascii);
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), Some('o'));
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), Some('k'));
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), None);
+
+        let mut bytes: &[u8] = &[0x80];
+        let mut ch = CharReader::new(Encoding::Ascii);
+        assert!(ch.next_char_from(&mut bytes).is_err());
+    }
+
+    #[test]
+    fn test_encoding_switch() {
+        let data: &[u8] = &[b'<', b'?', 0xE9]; // <? then Latin1 é
+        let mut bytes = data;
+        let mut ch = CharReader::new(Encoding::Default);
+
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), Some('<'));
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), Some('?'));
+
+        ch.encoding = Encoding::Latin1;
+
+        assert_eq!(ch.next_char_from(&mut bytes).unwrap(), Some('é'));
+    }
 }
