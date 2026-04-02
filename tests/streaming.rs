@@ -244,3 +244,82 @@ fn doctype_name_only_name_closing_tag() {
     assert_eq!(d.public_id(), None);
     assert_eq!(d.system_id(), None);
 }
+
+fn test_streaming_recovery(bytes: &[u8], split_at: usize) -> Vec<XmlEvent> {
+    let (chunk1, chunk2) = bytes.split_at(split_at);
+    let mut events = Vec::new();
+
+    let mut reader = ParserConfig::new()
+        .ignore_end_of_stream(true)
+        .ignore_comments(false)
+        .create_reader(BufReader::new(Cursor::new(chunk1.to_vec())));
+
+    while let Ok(ev) = reader.next() {
+        let is_end = matches!(ev, XmlEvent::EndDocument);
+        events.push(ev);
+        if is_end { return events; }
+    }
+
+    write_and_reset_position(reader.source_mut().get_mut(), chunk2);
+
+    let (mut finished, mut errors) = (false, 0);
+    while !finished && errors < 2 {
+        match reader.next() {
+            Ok(ev) => {
+                errors = 0;
+                let is_end = matches!(ev, XmlEvent::EndDocument);
+                events.push(ev);
+                if is_end { finished = true; break; }
+            }
+            Err(_) => errors += 1,
+        }
+    }
+    assert!(finished, "Parser did not recover and kept returning an error.");
+    events
+}
+
+#[test]
+fn reading_streamed_content_split_comment() {
+    const X_COUNT: usize = 20;
+    let mut bytes = b"<root><!-- ".to_vec();
+    bytes.extend(std::iter::repeat(b'X').take(X_COUNT));
+    bytes.extend_from_slice(b" --></root>");
+
+    let events = test_streaming_recovery(&bytes, 20);
+    assert!(events.iter().any(|e| matches!(e,
+        XmlEvent::Comment(c) if c.trim().len() == X_COUNT
+        && c.trim().chars().all(|ch| ch == 'X'))));
+}
+
+#[test]
+fn reading_streamed_content_split_cdata() {
+    const X_COUNT: usize = 20;
+    let mut bytes = b"<root><![CDATA[ ".to_vec();
+    bytes.extend(std::iter::repeat(b'X').take(X_COUNT));
+    bytes.extend_from_slice(b" ]]></root>");
+
+    let events = test_streaming_recovery(&bytes, 20);
+    assert!(events.iter().any(|e| matches!(e,
+        XmlEvent::CData(c) if c.trim().len() == X_COUNT
+        && c.trim().chars().all(|ch| ch == 'X'))));
+}
+
+#[test]
+fn reading_streamed_content_split_declaration() {
+    let bytes = b"<?xml version='1.0' encoding='UTF-8'?><root/>";
+    test_streaming_recovery(bytes, 10);
+}
+
+#[test]
+fn reading_streamed_content_split_doctype_keyword() {
+    let bytes = b"<!DOCTYPE root><root/>";
+    test_streaming_recovery(bytes, 7);
+}
+
+#[test]
+fn reading_streamed_content_split_pi() {
+    let mut bytes = b"<root><?pi ".to_vec();
+    bytes.extend(std::iter::repeat(b'X').take(20));
+    bytes.extend_from_slice(b" ?></root>");
+    test_streaming_recovery(&bytes, 15);
+}
