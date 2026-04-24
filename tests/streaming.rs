@@ -278,6 +278,32 @@ fn test_streaming_recovery(bytes: &[u8], split_at: usize) -> Vec<XmlEvent> {
     events
 }
 
+fn test_all_splits<F>(bytes: &[u8], check: F)
+where F: Fn(&[XmlEvent], usize) {
+    for i in 1..bytes.len() {
+        let events = test_streaming_recovery(bytes, i);
+        check(&events, i);
+    }
+}
+
+fn check_root_wrapper<F>(events: &[XmlEvent], split_at: usize, middle_check: F)
+where F: Fn(&XmlEvent) -> bool {
+    let mut start_found = false;
+    let mut middle_found = false;
+    let mut end_found = false;
+    for ev in events {
+        match ev {
+            XmlEvent::StartElement { name, .. } if name.local_name == "root" => start_found = true,
+            ev if middle_check(ev) => middle_found = true,
+            XmlEvent::EndElement { name } if name.local_name == "root" => end_found = true,
+            _ => {}
+        }
+    }
+    assert!(start_found, "Did not find expected StartElement for split at {}", split_at);
+    assert!(middle_found, "Did not find expected middle content for split at {}", split_at);
+    assert!(end_found, "Did not find expected EndElement for split at {}", split_at);
+}
+
 #[test]
 fn reading_streamed_content_split_comment() {
     const X_COUNT: usize = 20;
@@ -285,10 +311,11 @@ fn reading_streamed_content_split_comment() {
     bytes.extend(std::iter::repeat(b'X').take(X_COUNT));
     bytes.extend_from_slice(b" --></root>");
 
-    let events = test_streaming_recovery(&bytes, 20);
-    assert!(events.iter().any(|e| matches!(e,
-        XmlEvent::Comment(c) if c.trim().len() == X_COUNT
-        && c.trim().chars().all(|ch| ch == 'X'))));
+    test_all_splits(&bytes, |events, i| {
+        check_root_wrapper(events, i, |e| matches!(e,
+            XmlEvent::Comment(c) if c.trim().len() == X_COUNT
+            && c.trim().chars().all(|ch| ch == 'X')));
+    });
 }
 
 #[test]
@@ -298,10 +325,11 @@ fn reading_streamed_content_split_cdata() {
     bytes.extend(std::iter::repeat(b'X').take(X_COUNT));
     bytes.extend_from_slice(b" ]]></root>");
 
-    let events = test_streaming_recovery(&bytes, 20);
-    assert!(events.iter().any(|e| matches!(e,
-        XmlEvent::CData(c) if c.trim().len() == X_COUNT
-        && c.trim().chars().all(|ch| ch == 'X'))));
+    test_all_splits(&bytes, |events, i| {
+        check_root_wrapper(events, i, |e| matches!(e,
+            XmlEvent::CData(c) if c.trim().len() == X_COUNT
+            && c.trim().chars().all(|ch| ch == 'X')));
+    });
 }
 
 #[test]
@@ -322,4 +350,79 @@ fn reading_streamed_content_split_pi() {
     bytes.extend(std::iter::repeat(b'X').take(20));
     bytes.extend_from_slice(b" ?></root>");
     test_streaming_recovery(&bytes, 15);
+}
+
+#[test]
+fn test_all_splits_empty_tag() {
+    test_all_splits(b"<root/>", |events, i| {
+        assert_eq!(events.len(), 4, "Incorrect number of events for split at {}", i);
+        match &events[1] {
+            XmlEvent::StartElement { name, .. } => assert_eq!(name.local_name, "root"),
+            _ => panic!("Expected StartElement at index 1"),
+        }
+    });
+}
+
+#[test]
+fn reading_streamed_content_split_attribute_url() {
+    let bytes = b"<root attr='http://example.com'/>";
+    // The / are at indices 18 and 19
+    for i in 17..21 {
+        let events = test_streaming_recovery(bytes, i);
+        let mut found = false;
+        for ev in events {
+            if let XmlEvent::StartElement { name, attributes, .. } = ev {
+                assert_eq!(name.local_name, "root");
+                assert_eq!(attributes.len(), 1);
+                assert_eq!(attributes[0].value, "http://example.com");
+                found = true;
+            }
+        }
+        assert!(found, "Did not find expected StartElement for split at {}", i);
+    }
+}
+
+#[test]
+fn test_all_splits_comment_incomplete() {
+    test_all_splits(b"<root><!-- -> - --></root>", |events, i| {
+        check_root_wrapper(events, i, |ev| matches!(ev, XmlEvent::Comment(c) if c == " -> - "));
+    });
+}
+
+#[test]
+fn test_all_splits_cdata_incomplete() {
+    test_all_splits(b"<root><![CDATA[ [ ] ]] ]]] ]]x ]] ]]></root>", |events, i| {
+        check_root_wrapper(events, i, |ev| matches!(ev, XmlEvent::CData(c) if c == " [ ] ]] ]]] ]]x ]] "));
+    });
+}
+
+#[test]
+fn test_all_splits_invalid_cdata_err() {
+    let bytes = b"<root> ]]> </root>";
+    for i in 1..bytes.len() {
+        let (chunk1, chunk2) = bytes.split_at(i);
+        let mut reader = ParserConfig::new()
+            .ignore_end_of_stream(true)
+            .create_reader(BufReader::new(Cursor::new(chunk1.to_vec())));
+
+        let mut error_found = false;
+        while let Ok(ev) = reader.next() {
+            if matches!(ev, XmlEvent::EndDocument) { break; }
+        }
+
+        write_and_reset_position(reader.source_mut().get_mut(), chunk2);
+
+        loop {
+            match reader.next() {
+                Err(e) if e.to_string().contains("Unexpected token: ]]>") => {
+                    error_found = true;
+                    break;
+                }
+                Ok(XmlEvent::EndDocument) => break,
+                Err(_) => {}
+                _ => {}
+            }
+        }
+        assert!(error_found, "Did not find expected 'Unexpected token: ]]> error for split at {}", i);
+    }
 }
