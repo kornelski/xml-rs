@@ -586,7 +586,24 @@ fn issue_83_duplicate_attributes() {
         br#"
             |StartDocument(1.0, UTF-8)
             |StartElement(hello)
-            |1:26 Attribute 'a' is redefined
+            |1:25 Attribute 'a' is redefined
+        "#,
+        ParserConfig::new(),
+        false,
+    );
+}
+
+#[test]
+fn duplicate_attributes_aliased_prefixes() {
+    test(
+        br#"<svg xmlns:n2="http://www.w3.org/1999/xlink" xmlns:xlink="http://www.w3.org/1999/xlink">
+          <a n2:href="v1" xlink:href="v2" />
+        </svg>"#,
+        br#"
+            |StartDocument(1.0, UTF-8)
+            |StartElement(svg)
+            |Whitespace("\n          ")
+            |2:27 Attribute '{http://www.w3.org/1999/xlink}xlink:href' is redefined
         "#,
         ParserConfig::new(),
         false,

@@ -23,7 +23,6 @@ use self::parser::PullParser;
 mod config;
 mod error;
 mod events;
-mod indexset;
 mod lexer;
 mod parser;
 
