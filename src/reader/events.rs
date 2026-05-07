@@ -130,19 +130,19 @@ pub struct DoctypeRef<'tmp> {
 
 impl DoctypeRef<'_> {
     /// Doctype name, following <?DOCTYPE ...
-    #[must_use] 
+    #[must_use]
     pub fn name(&self) -> &str {
         self.name
     }
 
     /// [Public id](https://www.w3.org/TR/xml/#NT-ExternalID) of Doctype, if available.
-    #[must_use] 
+    #[must_use]
     pub fn public_id(&self) -> Option<&str> {
         self.public_id
     }
 
     /// [System id](https://www.w3.org/TR/xml/#NT-ExternalID) of Doctype, if available
-    #[must_use] 
+    #[must_use]
     pub fn system_id(&self) -> Option<&str> {
         self.system_id
     }

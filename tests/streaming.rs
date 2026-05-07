@@ -126,7 +126,6 @@ fn stylesheet_pi_escaping() {
     assert_match!(it.next(), Some(Ok(XmlEvent::Characters(c))) if c.trim() == "okay");
 }
 
-
 #[test]
 fn unicode_attribute() {
     let source = r#"<xml xmlns:â="_"><b:t â:a="_" xmlns:b="_"/></xml>"#;
@@ -172,7 +171,6 @@ fn no_double_prefix() {
     assert_match!(it.next(), Some(Ok(XmlEvent::StartElement { ref name, .. })) if name.local_name == "root");
     assert!(format!("{:?}", it.next()).contains("pos: 1:11, kind: Syntax(\"Unexpected token inside qualified name: :\")"));
 }
-
 
 #[test]
 fn no_double_colon_in_attr_name() {
@@ -299,9 +297,9 @@ where F: Fn(&XmlEvent) -> bool {
             _ => {}
         }
     }
-    assert!(start_found, "Did not find expected StartElement for split at {}", split_at);
-    assert!(middle_found, "Did not find expected middle content for split at {}", split_at);
-    assert!(end_found, "Did not find expected EndElement for split at {}", split_at);
+    assert!(start_found, "Did not find expected StartElement for split at {split_at}");
+    assert!(middle_found, "Did not find expected middle content for split at {split_at}");
+    assert!(end_found, "Did not find expected EndElement for split at {split_at}");
 }
 
 #[test]
@@ -355,7 +353,7 @@ fn reading_streamed_content_split_pi() {
 #[test]
 fn test_all_splits_empty_tag() {
     test_all_splits(b"<root/>", |events, i| {
-        assert_eq!(events.len(), 4, "Incorrect number of events for split at {}", i);
+        assert_eq!(events.len(), 4, "Incorrect number of events for split at {i}");
         match &events[1] {
             XmlEvent::StartElement { name, .. } => assert_eq!(name.local_name, "root"),
             _ => panic!("Expected StartElement at index 1"),
@@ -378,7 +376,7 @@ fn reading_streamed_content_split_attribute_url() {
                 found = true;
             }
         }
-        assert!(found, "Did not find expected StartElement for split at {}", i);
+        assert!(found, "Did not find expected StartElement for split at {i}");
     }
 }
 
@@ -417,12 +415,12 @@ fn test_all_splits_invalid_cdata_err() {
                 Err(e) if e.to_string().contains("Unexpected token: ]]>") => {
                     error_found = true;
                     break;
-                }
+                },
                 Ok(XmlEvent::EndDocument) => break,
-                Err(_) => {}
-                _ => {}
+                Err(_) => {},
+                _ => {},
             }
         }
-        assert!(error_found, "Did not find expected 'Unexpected token: ]]> error for split at {}", i);
+        assert!(error_found, "Did not find expected 'Unexpected token: ]]> error for split at {i}");
     }
 }

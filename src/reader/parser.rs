@@ -1,16 +1,15 @@
 //! Contains an implementation of pull-based XML parser.
 
-use crate::reader::DoctypeRef;
 use crate::common::{is_xml10_char, is_xml11_char, is_xml11_char_not_restricted, is_name_char, is_name_start_char, is_whitespace_char};
 use crate::common::{Position, TextPosition, XmlVersion};
+use crate::attribute::OwnedAttribute;
 use crate::name::OwnedName;
 use crate::namespace::NamespaceStack;
 use crate::reader::config::ParserConfig;
-use crate::reader::error::{ImmutableEntitiesError, SyntaxError};
-use crate::reader::error::Error;
-use crate::attribute::OwnedAttribute;
+use crate::reader::error::{Error, ImmutableEntitiesError, SyntaxError};
 use crate::reader::events::XmlEvent;
 use crate::reader::lexer::{Lexer, Token};
+use crate::reader::DoctypeRef;
 
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
@@ -429,7 +428,7 @@ impl PullParser {
 
     /// Handle end of stream
     #[cold]
-    fn handle_eof(&mut self) -> std::result::Result<XmlEvent, super::Error> {
+    fn handle_eof(&mut self) -> std::result::Result<XmlEvent, Error> {
         let ev = if self.depth() == 0 {
             if self.encountered == Encountered::Element && self.st == State::OutsideTag {  // all is ok
                 Ok(XmlEvent::EndDocument)
@@ -472,7 +471,7 @@ impl PullParser {
 
     #[cold]
     #[allow(clippy::needless_pass_by_value)]
-    fn error_at(&self, e: SyntaxError, pos: TextPosition) -> Result {
+    fn error_at(e: SyntaxError, pos: TextPosition) -> Result {
         Err(Error::syntax(e.to_cow(), pos))
     }
 
@@ -689,7 +688,7 @@ impl PullParser {
                 attributes[i].name.namespace = match self.nst.get(pfx) {
                     Some("") => None, // default namespace
                     Some(ns) => Some(ns.into()),
-                    None => return Some(self.error_at(SyntaxError::UnboundAttribute(attributes[i].name.to_string().into()), attribute_positions[i])),
+                    None => return Some(Self::error_at(SyntaxError::UnboundAttribute(attributes[i].name.to_string().into()), attribute_positions[i])),
                 };
             }
         }
@@ -698,7 +697,7 @@ impl PullParser {
         if let Some(idx) = Self::find_duplicate_attribute(&attributes) {
             let attr = &attributes[idx];
             let pos = attribute_positions[idx];
-            return Some(self.error_at(SyntaxError::RedefinedAttribute(attr.name.to_string().into()), pos));
+            return Some(Self::error_at(SyntaxError::RedefinedAttribute(attr.name.to_string().into()), pos));
         }
 
         if emit_end_element {
@@ -896,7 +895,7 @@ mod tests {
 
     #[test]
     fn processing_instruction_in_attribute_value() {
-        use crate::reader::error::{SyntaxError, Error};
+        use crate::reader::error::{Error, SyntaxError};
 
         let (mut r, mut p) = test_data!(r#"
             <y F="<?abc"><x G="/">

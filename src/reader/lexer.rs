@@ -655,8 +655,8 @@ mod tests {
             let err = $lex.next_token(&mut $buf);
             assert!(err.is_err());
             let err = err.unwrap_err();
-            assert_eq!($r as u64, err.position().row);
-            assert_eq!($c as u64, err.position().column);
+            assert_eq!($r, err.position().row);
+            assert_eq!($c, err.position().column);
         })
     );
 

@@ -25,12 +25,12 @@ fn count_event_in_file(name: &Path) -> Result<usize> {
 
 #[test]
 fn issue_177() {
-    assert!(xml::EventReader::from_str(";<?").next().is_err());
+    assert!(EventReader::from_str(";<?").next().is_err());
 }
 
 #[test]
 fn issue_204() {
-    xml::EventReader::from_str("<!DOCTYPE<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\
+    EventReader::from_str("<!DOCTYPE<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\
     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\
@@ -39,7 +39,7 @@ fn issue_204() {
 
 #[test]
 fn issue_227() {
-    xml::EventReader::new_with_config(r#"<root>
+    EventReader::new_with_config(r"<root>
         <item><![CDATA[]]></item>
         <item><![CDATA[]]></item>
         <item><![CDATA[]]></item>
@@ -54,7 +54,7 @@ fn issue_227() {
         <item><![CDATA[]]></item>
         <item><![CDATA[]]></item>
         <item><![CDATA[]]></item>
-    </root>"#.as_bytes(),
+    </root>".as_bytes(),
     ParserConfig::new().cdata_to_characters(true)).into_iter().for_each(|_| {});
 }
 
@@ -971,7 +971,7 @@ fn test_inner(input: &[u8], output: &[u8], config: ParserConfig, test_position: 
 
 #[test]
 fn skip() {
-    let mut reader = xml::EventReader::from_str(r#"<a><x><c foo="bar"><d bar="none" /></c></x>Hello</a>"#);
+    let mut reader = EventReader::from_str(r#"<a><x><c foo="bar"><d bar="none" /></c></x>Hello</a>"#);
 
     'outer: loop {
         match reader.next().expect("Unexpected error!") {

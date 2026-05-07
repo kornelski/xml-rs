@@ -33,7 +33,7 @@ fn main() {
                         } else {
                             let attrs: Vec<_> = attributes
                                 .iter()
-                                .map(|a| format!("{}={:?}", &a.name, a.value))
+                                .map(|a| format!("{}={:?}", a.name, a.value))
                                 .collect();
                             println!("StartElement({name} [{}])", attrs.join(", "));
                         }

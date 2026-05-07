@@ -291,13 +291,13 @@ mod tests {
 
         let mut bytes: &[u8] = b"\xf0\x9f\x98";         // incomplete code point
         match CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap_err() {
-            super::CharReadError::UnexpectedEof => {},
+            CharReadError::UnexpectedEof => {},
             e => panic!("Unexpected result: {e:?}")
         }
 
         let mut bytes: &[u8] = b"\xff\x9f\x98\x32";     // invalid code point
         match CharReader::new(Encoding::Unknown).next_char_from(&mut bytes).unwrap_err() {
-            super::CharReadError::Utf8(_) => {},
+            CharReadError::Utf8(_) => {},
             e => panic!("Unexpected result: {e:?}"),
         }
 
@@ -311,7 +311,7 @@ mod tests {
 
         let mut r = ErrorReader;
         match CharReader::new(Encoding::Unknown).next_char_from(&mut r).unwrap_err() {
-            super::CharReadError::Io(ref e) if e.kind() == io::ErrorKind::Other &&
+            CharReadError::Io(ref e) if e.kind() == io::ErrorKind::Other &&
                                                e.to_string().contains("test error") => {},
             e => panic!("Unexpected result: {e:?}")
         }
