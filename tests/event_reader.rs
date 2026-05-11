@@ -1058,3 +1058,29 @@ impl fmt::Display for Event<'_> {
         }
     }
 }
+
+#[test]
+fn test_attribute_normalization() {
+    let xml = "<tag attr='val1\tval2\nval3\rval4' ref='&#x9;&#xA;&#xD;'/>";
+    let mut reader = EventReader::from_str(xml);
+
+    loop {
+        match reader.next() {
+            Ok(XmlEvent::StartElement { name, attributes, .. }) => {
+                assert_eq!(name.local_name, "tag");
+                for attr in attributes {
+                    if attr.name.local_name == "attr" {
+                        // All literal whitespaces should be normalized to space
+                        assert_eq!(attr.value, "val1 val2 val3 val4");
+                    } else if attr.name.local_name == "ref" {
+                        // Character references should NOT be normalized further to space
+                        assert_eq!(attr.value, "\t\n\r");
+                    }
+                }
+            }
+            Ok(XmlEvent::EndDocument) => break,
+            Err(e) => panic!("Error: {}", e),
+            _ => {}
+        }
+    }
+}
