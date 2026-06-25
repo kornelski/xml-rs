@@ -424,3 +424,24 @@ fn test_all_splits_invalid_cdata_err() {
         assert!(error_found, "Did not find expected 'Unexpected token: ]]> error for split at {i}");
     }
 }
+
+#[test]
+fn test_cdata_split_error_type() {
+    let xml_cdata = "<root><![CDATA[ partial";
+    let mut reader_cdata = ParserConfig::new()
+        .ignore_end_of_stream(true)
+        .create_reader(BufReader::new(Cursor::new(xml_cdata.as_bytes())));
+
+    reader_cdata.next().unwrap(); // StartDocument
+    reader_cdata.next().unwrap(); // StartElement(root)
+    let err_cdata = reader_cdata.next().unwrap_err();
+    assert!(err_cdata.to_string().contains("Unexpected end of stream"), "Error was: {}", err_cdata);
+
+    let xml_cdata_no_resumable = "<root><![CDATA[ partial";
+    let mut reader_cdata_no_resumable = EventReader::new(xml_cdata_no_resumable.as_bytes());
+    reader_cdata_no_resumable.next().unwrap(); // StartDocument
+    reader_cdata_no_resumable.next().unwrap(); // StartElement(root)
+    let err_cdata_no_resumable = reader_cdata_no_resumable.next().unwrap_err();
+    assert!(err_cdata_no_resumable.to_string().contains("Unclosed <![CDATA["), "Error was: {}", err_cdata_no_resumable);
+}
+
