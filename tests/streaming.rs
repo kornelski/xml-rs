@@ -445,3 +445,49 @@ fn test_cdata_split_error_type() {
     assert!(err_cdata_no_resumable.to_string().contains("Unclosed <![CDATA["), "Error was: {}", err_cdata_no_resumable);
 }
 
+#[test]
+fn test_eol_normalization_across_chunks() {
+    let buf = Cursor::new(b"<a>\r".to_vec());
+    let mut config = ParserConfig::new();
+    config.ignore_end_of_stream = true;
+    config.coalesce_characters = false; // Disable coalescing to see separate events if any
+    let reader = EventReader::new_with_config(buf, config);
+
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartElement { ref name, .. })) if name.local_name == "a");
+
+    // The first chunk ends with \r.
+    // In current implementation, it errors out with UnexpectedEof because of the pending root element.
+    assert_match!(it.next(), Some(Err(ref e)) if matches!(e.kind(), xml::reader::ErrorKind::Syntax(ref s) if s.contains("Unexpected end of stream")));
+
+    write_and_reset_position(it.source_mut(), b"\n\t</a>");
+
+    // Now it should see the \n, realize it was \r\n, and normalize it to \n.
+    // Then it should see \t.
+    assert_match!(it.next(), Some(Ok(XmlEvent::Whitespace(ref s))) if s == "\n\t");
+}
+
+#[test]
+fn test_eol_normalization_across_chunks_coalesced() {
+    let buf = Cursor::new(b"<a>\r".to_vec());
+    let mut config = ParserConfig::new();
+    config.ignore_end_of_stream = true;
+    config.coalesce_characters = true;
+    let reader = EventReader::new_with_config(buf, config);
+
+    let mut it = reader.into_iter();
+
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartDocument { .. })));
+    assert_match!(it.next(), Some(Ok(XmlEvent::StartElement { ref name, .. })) if name.local_name == "a");
+
+    // We hit EOF after \r
+    assert_match!(it.next(), Some(Err(ref e)) if matches!(e.kind(), xml::reader::ErrorKind::Syntax(ref s) if s.contains("Unexpected end of stream")));
+
+    write_and_reset_position(it.source_mut(), b"\n\tCONTENT</a>");
+
+    // With coalescing, we expect "\n\tCONTENT" as a single Characters/Whitespace event
+    assert_match!(it.next(), Some(Ok(XmlEvent::Characters(ref s))) if s == "\n\tCONTENT");
+}
+
