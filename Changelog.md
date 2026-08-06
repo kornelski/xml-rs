@@ -1,3 +1,16 @@
+## Version 1.4
+
+* Added attribute whitespace and newline normalization
+* Improved checks in CDATA and PI
+
+## Version 1.3
+
+* Fixed escaping of xmlns attributes
+* Reduced allocations
+* Fixed tests to be compatible with BufReader
+* Improved handling of resuming after EOF
+* Made duplicate atribute check namespace-aware
+
 ## Version 1.2
 
 * Tolerate future XML versions in the XML prolog, as allowed by the XML 1.0 grammar

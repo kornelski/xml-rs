@@ -338,3 +338,33 @@ fn raw_characters() {
         assert_match!(r.next().unwrap(), XmlEvent::EndDocument);
     }
 }
+
+#[test]
+fn xmlns_escaping_roundtrip() {
+    use xml::reader::{EventReader, XmlEvent as ReaderEvent};
+
+    let mut b = Vec::new();
+    let r = EventReader::new(r#"<s:svg xmlns:s="http://www.w3.org/2000/svg" xmlns="&quot;&gt;&lt;a:script xmlns:a=&quot;http://www.w3.org/1999/xhtml&quot;&gt;alert(location.href)&lt;/a:script&gt;&lt;svg"></s:svg>"#.as_bytes());
+    let mut w = EmitterConfig::new()
+        .write_document_declaration(false)
+        .create_writer(&mut b);
+
+    for e in r {
+        let e = e.unwrap();
+        if let Some(e) = e.as_writer_event() {
+            w.write(e).unwrap();
+        }
+    }
+
+    let written = str::from_utf8(&b).unwrap();
+
+    assert!(!written.contains("<a"), "{written}");
+    assert!(!written.contains("<script"), "{written}");
+    assert!(written.contains("xmlns:a=&quot;http://www.w3.org/1999/xhtml&quot;"));
+
+    let mut r = EventReader::new(written.as_bytes());
+    assert_match!(r.next().unwrap(), ReaderEvent::StartDocument { .. });
+    assert_match!(r.next().unwrap(), ReaderEvent::StartElement { .. });
+    assert_match!(r.next().unwrap(), ReaderEvent::EndElement { .. });
+    assert_match!(r.next().unwrap(), ReaderEvent::EndDocument);
+}
