@@ -1,3 +1,3 @@
 ibm-1-1-valid-P04-ibm04v01.xml ibm04v01.xml    This test case covers legal NameStartChars character ranges plus discrete legal   characters for production 04.  ; 36:24 Unexpected token inside qualified name: :
 ibm-1-1-valid-P05-ibm05v01.xml ibm05v01.xml    This test case covers legal Element Names as per production 5.  ; 55:24 Qualified name is invalid: LegalName:
-ibm-1-1-valid-P05-ibm05v03.xml ibm05v03.xml    This test case covers legal Attribute (Names) as per production 5.  ; 55:8 Qualified name is invalid: :attr
+ibm-1-1-valid-P05-ibm05v03.xml ibm05v03.xml    This test case covers legal Attribute (Names) as per production 5.  ; 4:26 Qualified name is invalid: :attr
