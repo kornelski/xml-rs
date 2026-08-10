@@ -35,10 +35,8 @@ o-p51fail6 p51fail6.xml   Only '|' connectors and occurrence on #PCDATA group mu
 o-p51fail7 p51fail7.xml   no nested groups  
 o-p52fail1 p52fail1.xml   A name is required  
 o-p53fail1 p53fail1.xml   S is required before default  
-o-p53fail2 p53fail2.xml   S is required before type  
 o-p53fail3 p53fail3.xml   type is required  
 o-p53fail4 p53fail4.xml   default is required  
-o-p53fail5 p53fail5.xml   name is requried  
 o-p54fail1 p54fail1.xml   don't pass unknown attribute types  
 o-p55fail1 p55fail1.xml   must be upper case  
 o-p56fail1 p56fail1.xml   no IDS type  
@@ -53,16 +51,10 @@ o-p58fail3 p58fail3.xml   notations are NAMEs, not NMTOKENs -- note:  Leaving th
 o-p58fail4 p58fail4.xml   NOTATION must be upper case  
 o-p58fail5 p58fail5.xml   S after keyword is required  
 o-p58fail6 p58fail6.xml   parentheses are require  
-o-p58fail7 p58fail7.xml   values are unquoted  
-o-p58fail8 p58fail8.xml   values are unquoted  
 o-p59fail1 p59fail1.xml   at least one required  
 o-p59fail2 p59fail2.xml   separator must be ","  
-o-p59fail3 p59fail3.xml   values are unquoted  
 o-p60fail1 p60fail1.xml   keywords must be upper case  
-o-p60fail2 p60fail2.xml   S is required after #FIXED  
-o-p60fail3 p60fail3.xml   only #FIXED has both keyword and value  
 o-p60fail4 p60fail4.xml   #FIXED required value  
-o-p60fail5 p60fail5.xml   only one default type  
 o-p61fail1 p61fail1.xml   no other types, including TEMP, which is valid in SGML  
 o-p62fail1 p62fail1.xml   INCLUDE must be upper case  
 o-p62fail2 p62fail2.xml   no spaces in terminating delimiter  

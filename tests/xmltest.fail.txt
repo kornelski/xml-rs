@@ -5,7 +5,6 @@ not-wf-sa-059 059.xml   String literal must be in quotes.
 not-wf-sa-060 060.xml   Invalid type NAME defined in ATTLIST.
 not-wf-sa-061 061.xml   External entity declarations require whitespace between public  and system IDs.
 not-wf-sa-064 064.xml   Space is required between attribute type and default values  in <!ATTLIST...> declarations. 
-not-wf-sa-065 065.xml   Space is required between attribute name and type  in <!ATTLIST...> declarations. 
 not-wf-sa-066 066.xml   Required whitespace is missing. 
 not-wf-sa-067 067.xml   Space is required between attribute type and default values  in <!ATTLIST...> declarations. 
 not-wf-sa-068 068.xml   Space is required between NOTATION keyword and list of  enumerated choices in <!ATTLIST...> declarations. 
@@ -13,7 +12,6 @@ not-wf-sa-069 069.xml   Space is required before an NDATA entity annotation.
 not-wf-sa-074 074.xml   Internal general parsed entities are only well formed if  they match the "content" production. 
 not-wf-sa-075 075.xml   ENTITY can't reference itself directly or indirectly. 
 not-wf-sa-077 077.xml   Undefined ENTITY bar. 
-not-wf-sa-078 078.xml   Undefined ENTITY foo. 
 not-wf-sa-079 079.xml   ENTITY can't reference itself directly or indirectly. 
 not-wf-sa-080 080.xml   ENTITY can't reference itself directly or indirectly. 
 not-wf-sa-081 081.xml   This tests the No External Entity References WFC,  since the entity is referred to within an attribute. 
@@ -47,12 +45,10 @@ not-wf-sa-136 136.xml   Tag omission is invalid in XML.
 not-wf-sa-137 137.xml   Space is required before a content model. 
 not-wf-sa-138 138.xml   Invalid syntax for content particle. 
 not-wf-sa-139 139.xml   The element-content model should not be empty. 
-not-wf-sa-158 158.xml   SGML-ism: "#NOTATION gif" can't have attributes. 
 not-wf-sa-159 159.xml   Uses '&' unquoted in an entity declaration,  which is illegal syntax for an entity reference.
 not-wf-sa-160 160.xml   Violates the PEs in Internal Subset WFC  by using a PE reference within a declaration. 
 not-wf-sa-161 161.xml   Violates the PEs in Internal Subset WFC  by using a PE reference within a declaration. 
 not-wf-sa-162 162.xml   Violates the PEs in Internal Subset WFC  by using a PE reference within a declaration. 
-not-wf-sa-180 180.xml   The Entity Declared WFC requires entities to be declared  before they are used in an attribute list declaration. 
 not-wf-sa-181 181.xml   Internal parsed entities must match the content  production to be well formed. 
 not-wf-sa-182 182.xml   Internal parsed entities must match the content  production to be well formed. 
 not-wf-sa-183 183.xml   Mixed content declarations may not include content particles.
@@ -68,5 +64,5 @@ not-wf-not-sa-009 009.xml   This test violates WFC:PE Between Declarations in Pr
 not-wf-ext-sa-001 001.xml   Tests the No Recursion WFC by having an external general  entity be self-recursive.
 not-wf-ext-sa-002 002.xml   External entities have "text declarations", which do  not permit the "standalone=..." attribute that's allowed  in XML declarations.
 not-wf-ext-sa-003 003.xml   Only one text declaration is permitted; a second one  looks like an illegal processing instruction (target names  of "xml" in any case are not allowed). 
-valid-sa-012 012.xml   Uses a legal XML 1.0 name consisting of a single colon  character (disallowed by the latest XML Namespaces draft).; 5:7 Qualified name is invalid: :
+valid-sa-012 012.xml   Uses a legal XML 1.0 name consisting of a single colon  character (disallowed by the latest XML Namespaces draft).; 3:16 Qualified name is invalid: :
 valid-not-sa-031 031.xml   Expands a general entity which contains a CDATA section with  what looks like a markup declaration (but is just text since  it's in a CDATA section).; 2:8 Unexpected entity: e

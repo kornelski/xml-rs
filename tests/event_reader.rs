@@ -1084,3 +1084,122 @@ fn test_attribute_normalization() {
         }
     }
 }
+
+#[test]
+fn test_internal_dtd_attlist_basic() {
+    let xml = r#"<!DOCTYPE r [<!ATTLIST v a CDATA "X">]><r><v/></r>"#;
+    let mut reader = EventReader::from_str(xml);
+
+    let mut found_v = false;
+    while let Ok(event) = reader.next() {
+        match event {
+            XmlEvent::StartElement { name, attributes, .. } if name.local_name == "v" => {
+                assert_eq!(attributes.len(), 1);
+                assert_eq!(attributes[0].name.local_name, "a");
+                assert_eq!(attributes[0].value, "X");
+                found_v = true;
+            }
+            XmlEvent::EndDocument => break,
+            _ => {}
+        }
+    }
+    assert!(found_v);
+}
+
+#[test]
+fn test_internal_dtd_attlist_entities_and_duplicates() {
+    let xml = r#"<!DOCTYPE r [
+        <!ENTITY myent "expanded">
+        <!ATTLIST v a CDATA "&myent; &#65; &amp; &lt;">
+        <!ATTLIST v a CDATA "should_be_ignored">
+        <!ATTLIST v b CDATA "second_decl">
+    ]><r><v/></r>"#;
+    let mut reader = EventReader::from_str(xml);
+
+    let mut found = false;
+    while let Ok(event) = reader.next() {
+        match event {
+            XmlEvent::StartElement { name, attributes, .. } if name.local_name == "v" => {
+                let attr_map: std::collections::HashMap<_, _> = attributes.iter()
+                    .map(|a| (a.name.local_name.as_str(), a.value.as_str()))
+                    .collect();
+                assert_eq!(attr_map.get("a"), Some(&"expanded A & <"));
+                assert_eq!(attr_map.get("b"), Some(&"second_decl"));
+                found = true;
+            }
+            XmlEvent::EndDocument => break,
+            _ => {}
+        }
+    }
+    assert!(found);
+}
+
+#[test]
+fn test_internal_dtd_attlist_modes_required_implied_fixed_default() {
+    let xml = r#"<!DOCTYPE r [
+        <!ATTLIST r root_attr CDATA "root_default">
+        <!ATTLIST v
+            req CDATA #REQUIRED
+            imp CDATA #IMPLIED
+            fix CDATA #FIXED "fixed_default"
+            def CDATA "direct_default"
+        >
+    ]>
+    <r>
+        <!-- 1. None specified: only #FIXED and direct default are applied -->
+        <v id="none"/>
+        <!-- 2. All specified: user-supplied values take effect, overriding defaults -->
+        <v id="all" req="r1" imp="i1" fix="f1" def="d1"/>
+        <!-- 3. Partial: user supplies required and implied, defaults applied for others -->
+        <v id="partial" req="r2" imp="i2"/>
+    </r>"#;
+
+    let mut reader = EventReader::from_str(xml);
+    let mut root_checked = false;
+    let mut elements_checked = 0;
+
+    while let Ok(event) = reader.next() {
+        match event {
+            XmlEvent::StartElement { name, ref attributes, .. } if name.local_name == "r" => {
+                assert_eq!(attributes.len(), 1);
+                assert_eq!(attributes[0].name.local_name, "root_attr");
+                assert_eq!(attributes[0].value, "root_default");
+                root_checked = true;
+            }
+            XmlEvent::StartElement { name, ref attributes, .. } if name.local_name == "v" => {
+                let map: std::collections::HashMap<_, _> = attributes.iter()
+                    .map(|a| (a.name.local_name.as_str(), a.value.as_str()))
+                    .collect();
+
+                match map.get("id").copied() {
+                    Some("none") => {
+                        assert_eq!(map.get("req"), None);
+                        assert_eq!(map.get("imp"), None);
+                        assert_eq!(map.get("fix"), Some(&"fixed_default"));
+                        assert_eq!(map.get("def"), Some(&"direct_default"));
+                        elements_checked += 1;
+                    }
+                    Some("all") => {
+                        assert_eq!(map.get("req"), Some(&"r1"));
+                        assert_eq!(map.get("imp"), Some(&"i1"));
+                        assert_eq!(map.get("fix"), Some(&"f1"));
+                        assert_eq!(map.get("def"), Some(&"d1"));
+                        elements_checked += 1;
+                    }
+                    Some("partial") => {
+                        assert_eq!(map.get("req"), Some(&"r2"));
+                        assert_eq!(map.get("imp"), Some(&"i2"));
+                        assert_eq!(map.get("fix"), Some(&"fixed_default"));
+                        assert_eq!(map.get("def"), Some(&"direct_default"));
+                        elements_checked += 1;
+                    }
+                    _ => {}
+                }
+            }
+            XmlEvent::EndDocument => break,
+            _ => {}
+        }
+    }
+    assert!(root_checked);
+    assert_eq!(elements_checked, 3);
+}
