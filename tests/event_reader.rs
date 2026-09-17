@@ -1203,3 +1203,91 @@ fn test_internal_dtd_attlist_modes_required_implied_fixed_default() {
     assert!(root_checked);
     assert_eq!(elements_checked, 3);
 }
+
+/// Returns the namespaces declared directly on the first `<req>` element.
+fn req_declared_namespaces(xml: &str) -> Vec<(String, String)> {
+    let mut reader = EventReader::from_str(xml);
+    loop {
+        match reader.next().unwrap() {
+            XmlEvent::StartElement { name, .. } if name.local_name == "req" => {
+                return reader.declared_namespaces()
+                    .expect("declared namespaces are available after StartElement")
+                    .iter()
+                    .map(|(p, u)| (p.to_owned(), u.to_owned()))
+                    .collect();
+            },
+            XmlEvent::EndDocument => panic!("<req> not found"),
+            _ => {},
+        }
+    }
+}
+
+#[test]
+fn xmlns_undeclaration_is_observable() {
+    // Only prefixed namespaces are in scope; `<req>` undeclares the default one.
+    let with = r#"<soap:Envelope xmlns:soap="urn:soap"><soap:Body><req xmlns=""><id>42</id></req></soap:Body></soap:Envelope>"#;
+    // Identical document, minus the `xmlns=""`.
+    let without = r#"<soap:Envelope xmlns:soap="urn:soap"><soap:Body><req><id>42</id></req></soap:Body></soap:Envelope>"#;
+
+    assert_eq!(req_declared_namespaces(with), vec![(String::new(), String::new())]);
+    assert!(req_declared_namespaces(without).is_empty(), "`xmlns=\"\"` is invisible to API clients");
+}
+
+#[test]
+fn declared_namespaces_are_element_local() {
+    let xml = r#"<soap:Envelope xmlns:soap="urn:soap"><soap:Body><req xmlns:x="urn:x" xmlns="urn:d"><id>42</id></req></soap:Body></soap:Envelope>"#;
+
+    assert_eq!(req_declared_namespaces(xml), vec![
+        (String::new(), "urn:d".to_owned()),
+        ("x".to_owned(), "urn:x".to_owned()),
+    ]);
+}
+
+#[test]
+fn declared_namespaces_unavailable_before_first_element() {
+    let mut reader = EventReader::from_str(r#"<?xml version="1.0"?><a xmlns="urn:a"/>"#);
+
+    assert!(reader.declared_namespaces().is_none());
+    assert!(matches!(reader.next().unwrap(), XmlEvent::StartDocument { .. }));
+    assert!(reader.declared_namespaces().is_none());
+
+    assert!(matches!(reader.next().unwrap(), XmlEvent::StartElement { .. }));
+    let declared = reader.declared_namespaces().unwrap();
+    assert_eq!(declared.get(""), Some("urn:a"));
+    assert_eq!(declared.iter().count(), 1);
+}
+
+#[test]
+fn declared_namespaces_follow_element_events() {
+    let xml = r#"<a xmlns:a="urn:a"><b xmlns:b="urn:b">text<c/></b></a>"#;
+
+    let mut reader = EventReader::from_str(xml);
+    let mut seen = Vec::new();
+    loop {
+        let event = reader.next().unwrap();
+        // Note that the declarations of `<a>` and `<b>` are reported again for their
+        // `EndElement`, but are not available in between, while children are reported.
+        let declared = reader.declared_namespaces()
+            .map(|ns| ns.iter().map(|(p, u)| format!("{p}={u}")).collect::<Vec<_>>().join(","));
+        seen.push(match &event {
+            XmlEvent::StartElement { name, .. } => format!("<{}> {declared:?}", name.local_name),
+            XmlEvent::EndElement { name } => format!("</{}> {declared:?}", name.local_name),
+            _ => format!("(other) {declared:?}"),
+        });
+        if matches!(event, XmlEvent::EndDocument) {
+            break;
+        }
+    }
+
+    assert_eq!(seen, vec![
+        r#"(other) None"#,           // StartDocument
+        r#"<a> Some("a=urn:a")"#,
+        r#"<b> Some("b=urn:b")"#,
+        r#"(other) None"#,           // Characters
+        r#"<c> Some("")"#,
+        r#"</c> Some("")"#,
+        r#"</b> Some("b=urn:b")"#,
+        r#"</a> Some("a=urn:a")"#,
+        r#"(other) None"#,           // EndDocument
+    ]);
+}
