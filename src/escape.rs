@@ -85,6 +85,7 @@ escapes!(
     b'"'  => "&quot;",
     b'\'' => "&apos;",
     b'&'  => "&amp;",
+    b'\t' => "&#x9;",
     b'\n' => "&#xA;",
     b'\r' => "&#xD;",
 );
@@ -94,6 +95,7 @@ escapes!(
     b'<' => "&lt;",
     b'>' => "&gt;",
     b'&' => "&amp;",
+    b'\r' => "&#xD;",
 );
 
 /// Performs escaping of common XML characters inside an attribute value.
@@ -107,8 +109,9 @@ escapes!(
 /// * `'` → `&apos;`
 /// * `&` → `&amp;`
 ///
-/// The following characters are escaped so that attributes are printed on
-/// a single line:
+/// The following whitespace characters are escaped to preserve their values
+/// during XML attribute-value normalization:
+/// * `\t` → `&#x9;`
 /// * `\n` → `&#xA;`
 /// * `\r` → `&#xD;`
 ///
@@ -128,6 +131,7 @@ pub fn escape_str_attribute(s: &str) -> Cow<'_, str> {
 ///
 /// * `<` → `&lt;`
 /// * `&` → `&amp;`
+/// * `\r` → `&#xD;` (to preserve it during XML end-of-line normalization)
 ///
 /// The resulting string is safe to use inside PCDATA sections but NOT inside attribute values.
 ///
@@ -141,17 +145,18 @@ pub fn escape_str_pcdata(s: &str) -> Cow<'_, str> {
 #[cfg(test)]
 mod tests {
     use super::{escape_str_attribute, escape_str_pcdata};
+    use std::borrow::Cow;
 
     #[test]
     fn test_escape_str_attribute() {
-        assert_eq!(escape_str_attribute("<>'\"&\n\r"), "&lt;&gt;&apos;&quot;&amp;&#xA;&#xD;");
-        assert_eq!(escape_str_attribute("no_escapes"), "no_escapes");
+        assert_eq!(escape_str_attribute("<>'\"&\t\n\r"), "&lt;&gt;&apos;&quot;&amp;&#x9;&#xA;&#xD;");
+        assert!(matches!(escape_str_attribute("no_escapes"), Cow::Borrowed(_)));
     }
 
     #[test]
     fn test_escape_str_pcdata() {
-        assert_eq!(escape_str_pcdata("<>&"), "&lt;&gt;&amp;");
-        assert_eq!(escape_str_pcdata("no_escapes"), "no_escapes");
+        assert_eq!(escape_str_pcdata("<>&\r"), "&lt;&gt;&amp;&#xD;");
+        assert!(matches!(escape_str_pcdata("no_escapes\t\n"), Cow::Borrowed(_)));
     }
 
     #[test]

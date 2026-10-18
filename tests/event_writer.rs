@@ -368,3 +368,51 @@ fn xmlns_escaping_roundtrip() {
     assert_match!(r.next().unwrap(), ReaderEvent::EndElement { .. });
     assert_match!(r.next().unwrap(), ReaderEvent::EndDocument);
 }
+
+#[test]
+fn whitespace_values_survive_writer_reader_roundtrip() {
+    use xml::reader::XmlEvent as ReadEvent;
+    use xml::writer::XmlEvent as WriteEvent;
+
+    for value in ["a\rb", "a\r\nb", "a\r\rb", "a\nb", "a\tb", "☃<&\t\r\n"] {
+        let mut output = Vec::new();
+        {
+            let mut writer = EmitterConfig::new()
+                .write_document_declaration(false)
+                .create_writer(&mut output);
+            writer.write(WriteEvent::start_element("e").attr("a", value)).unwrap();
+            writer.write(WriteEvent::characters(value)).unwrap();
+            writer.write(WriteEvent::end_element()).unwrap();
+        }
+
+        let mut text = String::new();
+        let mut attribute = None;
+        for event in EventReader::new(output.as_slice()) {
+            match event.unwrap() {
+                ReadEvent::StartElement { attributes, .. } => {
+                    attribute = Some(attributes[0].value.clone());
+                },
+                ReadEvent::Characters(value) | ReadEvent::Whitespace(value) => text.push_str(&value),
+                _ => {},
+            }
+        }
+        assert_eq!(attribute.as_deref(), Some(value));
+        assert_eq!(text, value);
+    }
+}
+
+#[test]
+fn disabling_escaping_keeps_literal_whitespace() {
+    use xml::writer::XmlEvent;
+
+    let mut output = Vec::new();
+    {
+        let mut config = EmitterConfig::new().write_document_declaration(false);
+        config.perform_escaping = false;
+        let mut writer = config.create_writer(&mut output);
+        writer.write(XmlEvent::start_element("e").attr("a", "x\ty")).unwrap();
+        writer.write(XmlEvent::characters("a\rb")).unwrap();
+        writer.write(XmlEvent::end_element()).unwrap();
+    }
+    assert_eq!(output, b"<e a=\"x\ty\">a\rb</e>");
+}
