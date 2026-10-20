@@ -224,12 +224,15 @@ pub(crate) struct Lexer {
     reader: CharReader,
     pos: TextPosition,
     head_pos: TextPosition,
-    char_queue: VecDeque<char>,
+    /// `None` marks the end of a reparsed entity replacement text
+    char_queue: VecDeque<Option<char>>,
     /// Default state to go back to after a tag end (may be `InsideDoctype`)
     normal_state: State,
     inside_token: bool,
     eof_handled: bool,
     reparse_depth: u8,
+    /// Length of the replacement texts reparsed since the queue was last empty
+    reparse_length: usize,
     last_was_cr: bool,
     #[cfg(test)]
     skip_errors: bool,
@@ -258,6 +261,7 @@ impl Lexer {
             inside_token: false,
             eof_handled: false,
             reparse_depth: 0,
+            reparse_length: 0,
             last_was_cr: false,
             #[cfg(test)]
             skip_errors: false,
@@ -308,6 +312,10 @@ impl Lexer {
 
         // Check if we have saved a char or two for ourselves
         while let Some(c) = self.char_queue.pop_front() {
+            let Some(c) = c else {
+                self.reparse_depth -= 1;
+                continue;
+            };
             if let Some(t) = self.dispatch_char(c)? {
                 self.inside_token = false;
                 return Ok(t);
@@ -315,6 +323,7 @@ impl Lexer {
         }
         // if char_queue is empty, all circular reparsing is done
         self.reparse_depth = 0;
+        self.reparse_length = 0;
         while let Some(mut c) = self.reader.next_char_from(b)? {
             if self.last_was_cr && c == '\n' {
                 self.last_was_cr = false;
@@ -412,7 +421,7 @@ impl Lexer {
 
     fn move_to_with_unread(&mut self, st: State, cs: &[char], token: Token) -> Token {
         for c in cs.iter().rev().copied() {
-            self.char_queue.push_front(c);
+            self.char_queue.push_front(Some(c));
         }
         self.move_to_with(st, token)
     }
@@ -423,14 +432,16 @@ impl Lexer {
         }
 
         self.reparse_depth += 1;
-        if self.reparse_depth > self.max_entity_expansion_depth || self.char_queue.len() > self.max_entity_expansion_length {
+        self.reparse_length += markup.len();
+        if self.reparse_depth > self.max_entity_expansion_depth || self.reparse_length > self.max_entity_expansion_length {
             return Err(self.error(SyntaxError::EntityTooBig));
         }
 
         self.reset_eof_handled();
-        self.char_queue.reserve(markup.len());
+        self.char_queue.reserve(markup.len() + 1);
+        self.char_queue.push_front(None);
         for c in markup.chars().rev() {
-            self.char_queue.push_front(c);
+            self.char_queue.push_front(Some(c));
         }
 
         Ok(())
@@ -444,8 +455,8 @@ impl Lexer {
         if self.skip_errors {
             let mut chars = chunk.chars();
             let first = chars.next().unwrap_or('\0');
-            self.char_queue.extend(chars);
-            self.char_queue.push_back(c);
+            self.char_queue.extend(chars.map(Some));
+            self.char_queue.push_back(Some(c));
             return Ok(Some(self.move_to_with(State::Normal, Token::Character(first))));
         }
         Err(self.error(SyntaxError::UnexpectedTokenBefore(chunk, c)))
