@@ -42,6 +42,8 @@ pub(crate) enum SyntaxError {
     CannotRedefineXmlPrefix,
     /// Recursive custom entity expanded to too many chars, it could be DoS
     EntityTooBig,
+    /// Custom entities expanded to too many bytes relative to the input
+    EntityAmplificationTooLarge,
     EmptyEntity,
     NoRootElement,
     ProcessingInstructionWithoutName,
@@ -100,6 +102,7 @@ impl SyntaxError {
             Self::CannotRedefineXmlPrefix => "Default XMLNS prefix cannot be rebound to another value".into(),
             Self::EmptyEntity => "Encountered empty entity".into(),
             Self::EntityTooBig => "Entity too big".into(),
+            Self::EntityAmplificationTooLarge => "Entity expansion exceeded the configured amplification limit".into(),
             Self::NoRootElement => "Unexpected end of stream: no root element found".into(),
             Self::ProcessingInstructionWithoutName => "Encountered processing instruction without a name".into(),
             Self::UnbalancedRootElement => "Unexpected end of stream: still inside the root element".into(),

@@ -371,6 +371,9 @@ impl PullParser {
                     let name = self.data.take_ref_data();
                     match self.entities.get(&name) {
                         Some(ent) => {
+                            if let Err(e) = self.lexer.add_entity_bytes(ent.len()) {
+                                return Some(Err(e));
+                            }
                             self.buf.push_str(ent);
                             self.into_state_continue(State::InsideDoctype(
                                 DoctypeSubstate::EntityValue,

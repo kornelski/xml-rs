@@ -10,7 +10,7 @@ use std::result;
 use crate::common::{Position, TextPosition};
 use crate::namespace::Namespace;
 
-pub use config::ParserConfig;
+pub use config::{EntityAmplificationLimit, ParserConfig};
 pub use error::{Error, ErrorKind, ImmutableEntitiesError};
 pub use events::{DoctypeRef, XmlEvent};
 

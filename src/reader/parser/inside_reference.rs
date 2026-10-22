@@ -35,6 +35,9 @@ impl PullParser {
                 if let Some(c) = c {
                     self.buf.push(c);
                 } else if let Some(v) = self.config.extra_entities.get(&name) {
+                    if let Err(e) = self.lexer.add_entity_bytes(v.len()) {
+                        return Some(Err(e));
+                    }
                     self.buf.push_str(v);
                 } else if let Some(v) = self.entities.get(&name) {
                     if self.state_after_reference == State::OutsideTag {
@@ -45,6 +48,9 @@ impl PullParser {
                     } else {
                         // however, inside attributes it's not allowed to affect attribute quoting,
                         // so it can't be fed to the lexer
+                        if let Err(e) = self.lexer.add_entity_bytes(v.len()) {
+                            return Some(Err(e));
+                        }
                         self.buf.push_str(v);
                     }
                 } else if self.config.replace_unknown_entity_references {

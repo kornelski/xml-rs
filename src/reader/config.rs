@@ -111,6 +111,9 @@ pub struct ParserConfig {
     /// Entities can expand into other entities this many times (be careful about exponential cost!)
     pub max_entity_expansion_depth: u8,
 
+    /// Abort if custom entities expand to too many bytes relative to the input. Disabled by default.
+    pub entity_amplification_limit: Option<EntityAmplificationLimit>,
+
     /// Maximum length of tag name or attribute name
     pub max_name_length: usize,
 
@@ -156,6 +159,7 @@ impl ParserConfig {
             allow_multiple_root_elements: true,
             max_entity_expansion_length: DEFAULT_MAX_ENTITY_EXPANSION_LENGTH,
             max_entity_expansion_depth: DEFAULT_MAX_ENTITY_EXPANSION_DEPTH,
+            entity_amplification_limit: None,
             max_attributes: 1 << 16,
             max_attribute_length: 1 << 30,
             max_data_length: 1 << 30,
@@ -273,6 +277,38 @@ impl ParserConfig {
     }
 }
 
+/// Limit on `(input bytes + custom entity replacement bytes) / input bytes`
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct EntityAmplificationLimit {
+    max_factor_bits: u32,
+    threshold: u64,
+}
+
+impl EntityAmplificationLimit {
+    /// The factor is checked once input and replacement bytes together reach `threshold`.
+    ///
+    /// Returns `None` if `max_factor` is NaN or less than 1.
+    #[must_use]
+    pub fn new(max_factor: f32, threshold: u64) -> Option<Self> {
+        if max_factor.is_nan() || max_factor < 1.0 {
+            return None;
+        }
+        Some(Self { max_factor_bits: max_factor.to_bits(), threshold })
+    }
+
+    /// Maximum `(input bytes + custom entity replacement bytes) / input bytes`
+    #[must_use]
+    pub fn max_factor(&self) -> f32 {
+        f32::from_bits(self.max_factor_bits)
+    }
+
+    /// Sum of input and custom entity replacement bytes before the factor is checked
+    #[must_use]
+    pub fn threshold(&self) -> u64 {
+        self.threshold
+    }
+}
+
 gen_setters! { ParserConfig,
     /// Set if you got one in the HTTP header
     override_encoding: val Option<Encoding>,
@@ -282,6 +318,8 @@ gen_setters! { ParserConfig,
     max_entity_expansion_length: val usize,
     /// Entities can expand into other entities this many times (be careful about exponential cost!)
     max_entity_expansion_depth: val u8,
+    /// Abort if custom entities expand to too many bytes relative to the input
+    entity_amplification_limit: val Option<EntityAmplificationLimit>,
     /// Max number of attributes per element
     max_attributes: val usize,
     /// Maximum length of tag name or attribute name

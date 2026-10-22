@@ -10,7 +10,7 @@ use std::collections::VecDeque;
 use std::io::Read;
 use std::{fmt, result};
 
-use super::ParserConfig;
+use super::{EntityAmplificationLimit, ParserConfig};
 
 /// `Token` represents a single lexeme of an XML document. These lexemes
 /// are used to perform actual parsing.
@@ -237,6 +237,12 @@ pub(crate) struct Lexer {
     max_entity_expansion_depth: u8,
     max_entity_expansion_length: usize,
     pub(crate) ignore_end_of_stream: bool,
+
+    /// Bytes read from the source
+    input_bytes: u64,
+    /// Bytes of custom entity replacement text
+    entity_bytes: u64,
+    entity_amplification_limit: Option<EntityAmplificationLimit>,
 }
 
 impl Position for Lexer {
@@ -265,7 +271,22 @@ impl Lexer {
             max_entity_expansion_depth: config.max_entity_expansion_depth,
             max_entity_expansion_length: config.max_entity_expansion_length,
             ignore_end_of_stream: config.ignore_end_of_stream,
+
+            input_bytes: 0,
+            entity_bytes: 0,
+            entity_amplification_limit: config.entity_amplification_limit,
         }
+    }
+
+    /// Counts custom entity replacement text and checks `entity_amplification_limit`
+    pub(crate) fn add_entity_bytes(&mut self, len: usize) -> Result<()> {
+        self.entity_bytes = self.entity_bytes.saturating_add(len as u64);
+        let Some(limit) = self.entity_amplification_limit else { return Ok(()) };
+        let total = self.input_bytes.saturating_add(self.entity_bytes);
+        if total >= limit.threshold() && total as f32 / self.input_bytes as f32 > limit.max_factor() {
+            return Err(self.error(SyntaxError::EntityAmplificationTooLarge));
+        }
+        Ok(())
     }
 
     pub(crate) fn encoding(&self) -> Encoding {
@@ -315,7 +336,11 @@ impl Lexer {
         }
         // if char_queue is empty, all circular reparsing is done
         self.reparse_depth = 0;
-        while let Some(mut c) = self.reader.next_char_from(b)? {
+        loop {
+            let mut source = CountingRead { inner: &mut *b, count: 0 };
+            let next = self.reader.next_char_from(&mut source);
+            self.input_bytes = self.input_bytes.saturating_add(source.count);
+            let Some(mut c) = next? else { break };
             if self.last_was_cr && c == '\n' {
                 self.last_was_cr = false;
                 continue;
@@ -426,6 +451,8 @@ impl Lexer {
         if self.reparse_depth > self.max_entity_expansion_depth || self.char_queue.len() > self.max_entity_expansion_length {
             return Err(self.error(SyntaxError::EntityTooBig));
         }
+
+        self.add_entity_bytes(markup.len())?;
 
         self.reset_eof_handled();
         self.char_queue.reserve(markup.len());
@@ -646,6 +673,19 @@ impl Lexer {
                 _ => Some(self.move_to_with_unread(State::Normal, &[']', c], Token::Character(']'))),
             },
         }
+    }
+}
+
+struct CountingRead<'a, R> {
+    inner: &'a mut R,
+    count: u64,
+}
+
+impl<R: Read> Read for CountingRead<'_, R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.count += n as u64;
+        Ok(n)
     }
 }
 

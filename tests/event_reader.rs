@@ -1291,3 +1291,42 @@ fn declared_namespaces_follow_element_events() {
         r#"(other) None"#,           // EndDocument
     ]);
 }
+
+fn parse_with_config(xml: &str, config: ParserConfig) -> Result<()> {
+    for event in EventReader::new_with_config(xml.as_bytes(), config) {
+        event?;
+    }
+    Ok(())
+}
+
+#[test]
+fn test_entity_amplification_limit() {
+    use xml::reader::EntityAmplificationLimit;
+
+    assert!(EntityAmplificationLimit::new(f32::NAN, 0).is_none());
+    assert!(EntityAmplificationLimit::new(0.99, 0).is_none());
+
+    let limit = |max_factor, threshold| {
+        ParserConfig::new().entity_amplification_limit(EntityAmplificationLimit::new(max_factor, threshold))
+    };
+    let is_amplification_error = |result: Result<()>| {
+        matches!(result, Err(e) if e.to_string().ends_with("Entity expansion exceeded the configured amplification limit"))
+    };
+
+    // each document expands about 10 times
+    let big = ".".repeat(1000);
+    let refs = "&big;".repeat(10);
+    let content = format!(r#"<!DOCTYPE doc [<!ENTITY big "{big}">]><doc>{refs}</doc>"#);
+    let attribute = format!(r#"<!DOCTYPE doc [<!ENTITY big "{big}">]><doc a="{refs}"/>"#);
+    let parameter = format!(r#"<!DOCTYPE doc [<!ENTITY % big "{big}"><!ENTITY e "{}">]><doc/>"#, "%big;".repeat(10));
+    for xml in [&content, &attribute, &parameter] {
+        assert!(parse_with_config(xml, ParserConfig::new()).is_ok());
+        assert!(parse_with_config(xml, limit(100.0, 0)).is_ok());
+        assert!(is_amplification_error(parse_with_config(xml, limit(5.0, 0))), "{xml}");
+        assert!(parse_with_config(xml, limit(5.0, 1 << 20)).is_ok());
+    }
+
+    let extra = format!("<doc>{refs}</doc>");
+    assert!(parse_with_config(&extra, ParserConfig::new().add_entity("big", &big)).is_ok());
+    assert!(is_amplification_error(parse_with_config(&extra, limit(5.0, 0).add_entity("big", &big))));
+}
