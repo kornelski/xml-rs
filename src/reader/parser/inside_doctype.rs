@@ -39,6 +39,10 @@ impl PullParser {
                     self.data.doctype_name = Some(self.take_buf_boxed());
                     self.into_state_continue(State::InsideDoctype(DoctypeSubstate::Outside))
                 },
+                Token::Character('[') => {
+                    self.data.doctype_name = Some(self.take_buf_boxed());
+                    self.into_state_continue(State::InsideDoctype(DoctypeSubstate::InternalSubset))
+                },
                 Token::Character(c) if is_name_char(c) => {
                     self.buf.push(c);
                     if self.buf.len() > self.config.max_name_length {

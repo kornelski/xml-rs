@@ -898,6 +898,17 @@ fn retrieve_doctype() {
     }
 }
 
+#[test]
+fn doctype_internal_subset_right_after_name() {
+    // white space between the name and '[' is optional
+    for source in ["<!DOCTYPE a[]><a/>", "<!DOCTYPE a[<!ELEMENT a EMPTY>]><a/>"] {
+        let events = EventReader::from_str(source).into_iter().collect::<Result<Vec<_>>>().unwrap();
+        let doctype = source.strip_suffix("<a/>").unwrap();
+        assert!(matches!(&events[1], XmlEvent::Doctype { syntax } if syntax == doctype), "{events:?}");
+        assert!(matches!(events.last(), Some(XmlEvent::EndDocument)));
+    }
+}
+
 // clones a lot but that's fine
 fn trim_until_bar(s: String) -> String {
     match s.trim() {
